@@ -1,0 +1,56 @@
+project:
+  name: ddm-diginetica-recommendation
+  description: Minimal DDM analytics layer over inherited SR-GNN recommendation outputs.
+
+paths:
+  raw_interactions_path: data/raw/diginetica/train-item-views.csv
+  raw_products_path: data/raw/diginetica/products.csv
+  raw_product_categories_path: data/raw/diginetica/product-categories.csv
+  raw_purchases_path: data/raw/diginetica/train-purchases.csv
+  raw_queries_path: data/raw/diginetica/train-queries.csv
+  raw_clicks_path: data/raw/diginetica/train-clicks.csv
+  backbone_repo_path: ../recsys-group-project
+
+inheritance:
+  data_version: v1_strict_filter
+  model_profile: srgnn_fc
+  top_k: 20
+  inherited_root: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20
+  test_examples_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/test_examples.parquet
+  predictions_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/predictions.parquet
+  item_vocab_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/item_vocab.json
+  metrics_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/metrics.json
+  item_metadata_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/item_metadata.parquet
+
+outputs:
+  processed_root: data/processed
+  mart_root: data/mart
+
+metric_framing:
+  native_metrics:
+    - HR@20
+    - MRR@20
+  ctr_proxy_definition: CTR Proxy@20 is Hit Rate@20 in business language, not real CTR.
+  revenue_proxy_requires_price: true
+  price_proxy_formula: price = 2^pricelog2 - 1
+  revenue_claim_limit: Captured GMV and revenue-weighted HR are offline proxies, not real revenue uplift.
+
+raw_tables:
+  product_categories:
+    path: data/raw/diginetica/product-categories.csv
+    grain: one row per item-category assignment
+  products:
+    path: data/raw/diginetica/products.csv
+    grain: one row per product/item
+  item_views:
+    path: data/raw/diginetica/train-item-views.csv
+    grain: one row per session item view
+  purchases:
+    path: data/raw/diginetica/train-purchases.csv
+    grain: one row per purchased item in an order/session
+  queries:
+    path: data/raw/diginetica/train-queries.csv
+    grain: one row per search query event
+  clicks:
+    path: data/raw/diginetica/train-clicks.csv
+    grain: one row per clicked query result item

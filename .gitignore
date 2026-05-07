@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.ipynb_checkpoints/
+.venv/
+venv/
+
+# Local environment
+.env
+.DS_Store
+
+# Data files: keep docs and placeholders, ignore heavy artifacts
+data/raw/**
+data/inherited/**
+data/processed/**
+data/mart/**
+
+!data/raw/
+!data/raw/diginetica/
+!data/raw/diginetica/README.md
+!data/raw/diginetica/data_dictionary.md
+!data/inherited/
+!data/inherited/recsys/
+!data/inherited/recsys/.gitkeep
+!data/processed/
+!data/processed/.gitkeep
+!data/mart/
+!data/mart/.gitkeep
+
+# Reports generated outside source docs
+reports/*.html
+reports/*.pdf
+
