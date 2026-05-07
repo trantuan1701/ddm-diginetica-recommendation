@@ -1,0 +1,5 @@
+[core]
+    remote = gdrive
+[remote "gdrive"]
+    url = gdrive://1LC9sZVAjPtOCLe0eyEI1oj5Kkqgeurgs/dvcstore
+    gdrive_acknowledge_abuse = true
