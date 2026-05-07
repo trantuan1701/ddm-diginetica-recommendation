@@ -146,13 +146,18 @@ def add_item_popularity_features(dim_item: pd.DataFrame, clean_item_views: pd.Da
 def build_clean_item_views(item_views: pd.DataFrame) -> pd.DataFrame:
     """Build the cleaned session item-view fact table."""
     out = parse_event_dates(standardize_id_columns(item_views))
-    out = out.dropna(subset=["session_id", "item_id", "event_date"]).drop_duplicates()
-
-    columns = ["session_id", "user_id", "item_id", "timeframe", "event_date"]
-    sort_columns = ["session_id", "event_date", "timeframe", "item_id"]
+    out = (
+        out.dropna(subset=['session_id', 'item_id', 'event_date'])
+           .drop_duplicates(
+               subset=['session_id', 'item_id', 'event_date'],
+               keep='first'
+           )
+    )
+    columns = ['session_id', 'user_id', 'item_id', 'timeframe', 'event_date']
+    sort_columns = ['session_id', 'event_date', 'timeframe', 'item_id']
     return (
-        out[[column for column in columns if column in out.columns]]
-        .sort_values([column for column in sort_columns if column in out.columns])
+        out[[c for c in columns if c in out.columns]]
+        .sort_values([c for c in sort_columns if c in out.columns])
         .reset_index(drop=True)
     )
 
@@ -160,13 +165,18 @@ def build_clean_item_views(item_views: pd.DataFrame) -> pd.DataFrame:
 def build_clean_purchases(purchases: pd.DataFrame) -> pd.DataFrame:
     """Build the cleaned purchase fact table."""
     out = parse_event_dates(standardize_id_columns(purchases))
-    out = out.dropna(subset=["session_id", "item_id", "event_date"]).drop_duplicates()
-
-    columns = ["session_id", "user_id", "timeframe", "event_date", "order_number", "item_id"]
-    sort_columns = ["session_id", "event_date", "timeframe", "order_number", "item_id"]
+    out = (
+        out.dropna(subset=['session_id', 'item_id', 'event_date'])
+           .drop_duplicates(
+               subset=['session_id', 'item_id', 'event_date'],
+               keep='first'
+           )
+    )
+    columns = ['session_id', 'user_id', 'timeframe', 'event_date', 'order_number', 'item_id']
+    sort_columns = ['session_id', 'event_date', 'timeframe', 'order_number', 'item_id']
     return (
-        out[[column for column in columns if column in out.columns]]
-        .sort_values([column for column in sort_columns if column in out.columns])
+        out[[c for c in columns if c in out.columns]]
+        .sort_values([c for c in sort_columns if c in out.columns])
         .reset_index(drop=True)
     )
 
@@ -225,11 +235,17 @@ def build_session_summary(
         )
 
         summary = view_summary.merge(purchase_summary, on="session_id", how="outer")
-        summary["user_id"] = summary["user_id"].combine_first(summary["purchase_user_id"])
-        summary = summary.drop(columns=["purchase_user_id"])
+        summary["user_id"]          = summary["user_id"].combine_first(summary["purchase_user_id"])
         summary["first_event_date"] = summary["first_event_date"].combine_first(summary["first_purchase_date"])
-        summary["last_event_date"] = summary["last_event_date"].combine_first(summary["last_purchase_date"])
-        summary["has_purchase"] = summary["purchase_count"].fillna(0).gt(0)
+        summary["last_event_date"]  = summary["last_event_date"].combine_first(summary["last_purchase_date"])
+        summary["has_purchase"]     = summary["purchase_count"].fillna(0).gt(0)
+
+        # Drop all intermediate columns
+        summary = summary.drop(columns=[
+            "purchase_user_id",
+            "first_purchase_date",
+            "last_purchase_date",
+        ])
 
     count_columns = [
         "view_count",
@@ -241,6 +257,8 @@ def build_session_summary(
     for column in count_columns:
         if column in summary.columns:
             summary[column] = summary[column].fillna(0).astype("Int64")
+
+    summary["purchased_value_proxy"] = summary["purchased_value_proxy"].fillna(0.0)
 
     for column in ["user_id", "first_view_timeframe", "last_view_timeframe"]:
         if column in summary.columns:
