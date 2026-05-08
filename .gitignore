@@ -11,6 +11,7 @@ venv/
 # Local environment
 .env
 .DS_Store
+.envrc
 
 # Data files: keep docs and placeholders, ignore heavy artifacts
 data/inherited/**
