@@ -56,16 +56,16 @@
   - HR@20 by session length bucket tests whether sequence depth changes offline next-click capture.
   - Revenue-weighted HR@20 or Captured GMV Proxy@20 may be used only as value proxies.
 
-## 5. Methodology: Inherited SR-GNN Backbone
+## 5. Methodology: Inherited Recommender Artifacts
 
-- Use the selected SR-GNN-FC backbone from `../recsys-group-project`.
+- Use a configured trained recommender artifact from DagsHub/MLflow.
+- The default is the canonical `recsys-serving` model with alias `Production`, but a pinned model version can be used for reproducibility or intermediate analysis.
+- Download the trained `registered_model` artifact into `data/inherited/recsys/`.
+- Inherit compatible intermediate context artifacts from `recsys-group-project`, especially `test_examples.parquet` and `item_vocab.json`.
+- Run final offline top-20 inference in this DDM repo on those compatible test examples.
 - Do not retrain SR-GNN in the DDM repo.
 - Do not re-split model evaluation data.
-- Inherit the selected strict-filter test examples, item vocabulary, and native metrics.
-- Inherit SR-GNN top-20 prediction rows exported from the trained backbone artifact.
-- Use train-only baselines for comparison:
-  - popularity top-20
-  - co-occurrence / next-item transition top-20
+- Validate the manifest, model card, test examples, prediction rows, item vocabulary, and metrics before computing marts.
 - Explain why SR-GNN is reasonable: it models item transitions inside session graphs, which matches the observed session-centered data structure.
 
 ## 6. Offline Evaluation Metrics
@@ -73,8 +73,8 @@
 - HR@20: whether the held-out next item appears in the top-20 list.
 - MRR@20: reciprocal rank of the held-out next item.
 - Catalog Coverage@20: unique recommended items divided by the known catalog size.
-- Report SR-GNN HR@20 and MRR@20 from the inherited top-20 prediction rows.
-- Report baseline HR@20, MRR@20, and Catalog Coverage@20 from train-only predictions.
+- Report HR@20 and MRR@20 from the DDM-generated top-20 prediction rows using the inherited trained model.
+- Compare against DDM-computed classic baselines: train-split popularity and one-step co-occurrence/MBA.
 - Use safe wording: offline next-click capture, not real CTR or recommendation-caused conversion.
 
 ## 7. Marketing Proxy KPIs
@@ -86,7 +86,6 @@
 - Captured GMV Proxy@20 = sum of `price_proxy(target_item) * hit@20`.
 - Revenue-weighted HR@20 = price-weighted hit rate over target items with price coverage.
 - Captured Purchase Value Proxy@20 = captured target value where the target item is also purchased in the same session.
-- Relative delta vs popularity baseline for HR@20 and revenue-weighted HR@20 where available.
 - All purchase and value metrics are offline proxies. Do not claim real revenue, causal uplift, ROAS, or conversion caused by recommendation.
 
 ## 8. Results
@@ -95,7 +94,7 @@
   - HR@20
   - MRR@20
   - Catalog Coverage@20
-- Compare against popularity and co-occurrence baselines.
+- Compare model HR@20, MRR@20, and coverage against popularity and co-occurrence classic baselines.
 - Discuss catalog coverage tradeoffs.
 - Discuss marketing proxy KPIs with safe language:
   - offline next-click capture
@@ -117,11 +116,11 @@
 - No online experiment or exposure assignment, so causal conversion or revenue uplift cannot be claimed.
 - `price_proxy` is derived from `pricelog2`; it is not audited price or real revenue.
 - SR-GNN top-20 rows are offline predictions, not observed recommendation impressions.
-- Baselines are offline benchmarks, not production systems.
+- Baselines are offline classic-method benchmarks, not production systems.
 - Recommendation metrics are offline proxies and should not be interpreted as ROAS or marketing incrementality.
 
 ## 11. Conclusion
 
 - Reaffirm that the session is the correct practical unit for this dataset.
-- Summarize whether session-based recommendation improves offline next-click capture versus simple baselines.
+- Summarize whether session-based recommendation improves offline next-click capture versus simple classic baselines.
 - State what additional data would be needed for real marketing measurement: impressions, recommendation exposure, clicks, purchases after exposure, and online experiment assignment.

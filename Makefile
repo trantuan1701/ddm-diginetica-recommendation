@@ -1,4 +1,4 @@
-.PHONY: validate inherit metrics marts
+.PHONY: validate inherit metrics marts report
 
 validate:
 	PYTHONPATH=src python -m ddm.pipeline validate
@@ -11,3 +11,6 @@ metrics:
 
 marts:
 	PYTHONPATH=src python -m ddm.pipeline marts
+
+report:
+	PYTHONPATH=src python -m ddm.pipeline report

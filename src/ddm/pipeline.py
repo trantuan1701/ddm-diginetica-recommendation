@@ -1,21 +1,15 @@
-"""Minimal project runners for the DDM course workflow.
-
-This module keeps the Makefile and notebooks thin. It does not train SR-GNN;
-it only consumes inherited artifacts and computes analytics-layer outputs.
-"""
+"""Course-facing runners for the DDM analytics/reporting workflow."""
 
 from __future__ import annotations
 
-import importlib.util
 import json
-import shutil
 import sys
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from ddm.baselines import build_cooccurrence_baseline, build_popularity_baseline
+from ddm.baselines import build_cooccurrence_baseline, build_popularity_baseline, validate_no_leakage
 from ddm.cleaning import (
     add_item_popularity_features,
     build_clean_item_views,
@@ -24,15 +18,15 @@ from ddm.cleaning import (
     build_session_summary,
 )
 from ddm.io import load_config, load_raw_tables, read_json, save_parquet
-from ddm.kpis import (
-    compute_model_proxy_kpis,
-    enrich_scored_examples_for_value,
-    native_metric_proxy_kpis,
-    revenue_weighted_hit_rate,
-)
+from ddm.kpis import compute_model_proxy_kpis, enrich_scored_examples_for_value
 from ddm.metrics import evaluate_topk_predictions, score_topk_predictions
+from ddm.registry import (
+    bundle_directory,
+    bundle_paths,
+    download_registry_bundle,
+    validate_inherited_bundle,
+)
 
-SRGNN_MODEL_KEY = "srgnn_fc_v1_strict_filter_top20"
 POPULARITY_MODEL_KEY = "popularity_top20"
 COOCCURRENCE_MODEL_KEY = "cooccurrence_top20"
 
@@ -51,28 +45,8 @@ def _resolve(root: Path, value: str | Path) -> Path:
     return path if path.is_absolute() else root / path
 
 
-def _backbone_root(root: Path, config: dict[str, Any]) -> Path:
-    return _resolve(root, config["paths"]["backbone_repo_path"]).resolve()
-
-
-def _inheritance_root(root: Path, config: dict[str, Any]) -> Path:
-    return _resolve(root, config["inheritance"]["inherited_root"])
-
-
-def _load_vocab(path: Path) -> dict[str, Any]:
-    return json.loads(path.read_text(encoding="utf-8"))
-
-
-def _id2item(vocab: dict[str, Any]) -> dict[int, int]:
-    if "id2item" in vocab:
-        return {int(k): int(v) for k, v in vocab["id2item"].items()}
-    return {int(v): int(k) for k, v in vocab.get("item2id", {}).items()}
-
-
-def _prefix_items(row: pd.Series) -> list[int]:
-    x = list(row["x"])
-    alias_inputs = list(row["alias_inputs"])
-    return [int(x[int(alias)]) for alias in alias_inputs]
+def _top_k(config: dict[str, Any]) -> int:
+    return int(config.get("inheritance", {}).get("top_k", 20))
 
 
 def build_clean_layer(project_root: str | Path = ".") -> dict[str, Path]:
@@ -103,314 +77,45 @@ def build_clean_layer(project_root: str | Path = ".") -> dict[str, Path]:
     return outputs
 
 
-def inherit_recsys_context(project_root: str | Path = ".") -> dict[str, Path | None]:
-    """Copy/prepare inherited SR-GNN context without retraining the model."""
+def inherit_recsys_context(project_root: str | Path = ".") -> dict[str, Path]:
+    """Download model artifact, inherit compatible context, and validate bundle."""
     root = _project_root(project_root)
     config = load_config(root / "configs/project_config.yaml")
-    backbone = _backbone_root(root, config)
-    inherited_root = _inheritance_root(root, config)
-    inherited_root.mkdir(parents=True, exist_ok=True)
-
-    data_version = config["inheritance"]["data_version"]
-    model_profile = config["inheritance"]["model_profile"]
-    top_k = int(config["inheritance"]["top_k"])
-
-    source_processed = backbone / "data" / "versions" / data_version / "processed"
-    source_model = backbone / "models" / "experiments" / data_version / model_profile / "latest"
-
-    source_vocab = source_processed / "item_vocab.json"
-    source_metrics = _find_source_metrics(backbone, data_version, model_profile, source_model)
-    source_test = source_processed / "test_examples.parquet"
-
-    if not source_vocab.exists():
-        raise FileNotFoundError(f"Missing inherited item vocab: {source_vocab}")
-    if not source_test.exists():
-        raise FileNotFoundError(f"Missing inherited test examples: {source_test}")
-
-    vocab_path = inherited_root / "item_vocab.json"
-    shutil.copy2(source_vocab, vocab_path)
-    if source_metrics is not None:
-        metrics_payload = _normalise_metrics_payload(read_json(source_metrics))
-        (inherited_root / "metrics.json").write_text(
-            json.dumps(metrics_payload, indent=2),
-            encoding="utf-8",
-        )
-
-    vocab = _load_vocab(vocab_path)
-    internal_to_raw = _id2item(vocab)
-    source_examples = pd.read_parquet(source_test).reset_index(drop=True)
-    examples = source_examples.copy()
-    examples.insert(0, "example_id", range(1, len(examples) + 1))
-    examples["target_item_id_internal"] = examples["pos_items"].astype("int64")
-    examples["target_item_id_raw"] = examples["target_item_id_internal"].map(internal_to_raw).astype("Int64")
-    examples["prefix_item_ids_internal"] = examples.apply(_prefix_items, axis=1)
-    examples["last_item_id_internal"] = examples["prefix_item_ids_internal"].apply(
-        lambda items: int(items[-1]) if items else pd.NA
-    )
-    examples["last_item_id_raw"] = examples["last_item_id_internal"].map(internal_to_raw).astype("Int64")
-
-    keep_columns = [
-        "example_id",
-        "session_id",
-        "target_item_id_internal",
-        "target_item_id_raw",
-        "eventdate",
-        "item_seq_len",
-        "prefix_item_ids_internal",
-        "last_item_id_internal",
-        "last_item_id_raw",
-        "x",
-        "edge_index",
-        "alias_inputs",
-    ]
-    test_examples_path = inherited_root / "test_examples.parquet"
-    save_parquet(examples[keep_columns], test_examples_path)
-
-    predictions_path = inherited_root / "predictions.parquet"
-    source_predictions = _find_source_predictions(backbone, data_version, model_profile)
-    if source_predictions is not None:
-        predictions = pd.read_parquet(source_predictions)
-        predictions = _normalise_prediction_export(predictions, examples, internal_to_raw)
-        save_parquet(predictions, predictions_path)
-        todo_path = None
-    elif predictions_path.exists():
-        todo = inherited_root / "PREDICTIONS_EXPORT_TODO.md"
-        if todo.exists():
-            todo.unlink()
-        todo_path = None
-    else:
-        todo_path = _write_prediction_todo(
-            inherited_root=inherited_root,
-            backbone=backbone,
-            source_model=source_model,
-            source_test=source_test,
-            top_k=top_k,
-        )
-        _try_export_predictions_if_torch_available(
-            predictions_path=predictions_path,
-            source_model=source_model,
-            source_examples=source_examples,
-            examples=examples,
-            internal_to_raw=internal_to_raw,
-            top_k=top_k,
-            backbone=backbone,
-        )
-        if predictions_path.exists():
-            if todo_path is not None and todo_path.exists():
-                todo_path.unlink()
-            todo_path = None
-
-    return {
-        "test_examples": test_examples_path,
-        "predictions": predictions_path if predictions_path.exists() else None,
-        "item_vocab": vocab_path,
-        "metrics": inherited_root / "metrics.json" if (inherited_root / "metrics.json").exists() else None,
-        "prediction_todo": todo_path,
-    }
+    bundle = download_registry_bundle(root, config)
+    paths = bundle_paths(root, config)
+    return {name: path for name, path in paths.items() if path.exists()}
 
 
-def _find_source_predictions(backbone: Path, data_version: str, model_profile: str) -> Path | None:
-    candidates = [
-        backbone / "data" / "versions" / data_version / "processed" / "predictions.parquet",
-        backbone / "models" / "experiments" / data_version / model_profile / "latest" / "predictions.parquet",
-        backbone / "metrics" / "experiments" / data_version / model_profile / "predictions.parquet",
-    ]
-    return next((path for path in candidates if path.exists()), None)
-
-
-def _find_source_metrics(
-    backbone: Path,
-    data_version: str,
-    model_profile: str,
-    source_model: Path,
-) -> Path | None:
-    """Prefer the selected-model metrics when they point at this artifact."""
-    best_model_path = backbone / "metrics" / "best_model.json"
-    if best_model_path.exists():
-        try:
-            payload = read_json(best_model_path)
-            best = payload.get("best_model", {})
-            if (
-                best.get("data_version") == data_version
-                and best.get("model_profile") == model_profile
-                and str(best.get("source", "")).endswith(str(source_model.relative_to(backbone)))
-            ):
-                return best_model_path
-        except (KeyError, ValueError):
-            pass
-
-    metrics_path = source_model / "metrics.json"
-    return metrics_path if metrics_path.exists() else None
-
-
-def _normalise_metrics_payload(payload: dict[str, Any]) -> dict[str, float]:
-    """Return the flat HR/MRR payload used by DDM marts."""
-    if "best_model" in payload:
-        metrics = payload.get("best_model", {}).get("metrics", {}).get("test_metrics", {})
-    elif "test_metrics" in payload:
-        metrics = payload.get("test_metrics", {})
-    else:
-        metrics = payload
-    return {key: float(value) for key, value in metrics.items() if key in {"hr@k", "mrr@k"}}
-
-
-def _normalise_prediction_export(
-    predictions: pd.DataFrame,
-    examples: pd.DataFrame,
-    internal_to_raw: dict[int, int],
-) -> pd.DataFrame:
-    out = predictions.copy()
-    if "example_id" not in out.columns:
-        if len(out) % len(examples) != 0:
-            raise ValueError("Prediction export lacks example_id and cannot be aligned.")
-        top_k = len(out) // len(examples)
-        out.insert(0, "example_id", examples["example_id"].repeat(top_k).to_numpy())
-    if "session_id" not in out.columns:
-        out = out.merge(examples[["example_id", "session_id"]], on="example_id", how="left")
-    if "pred_item_id_internal" not in out.columns:
-        for candidate in ["item_id_internal", "item_id", "prediction"]:
-            if candidate in out.columns:
-                out["pred_item_id_internal"] = out[candidate]
-                break
-    if "pred_item_id_raw" not in out.columns and "pred_item_id_internal" in out.columns:
-        out["pred_item_id_raw"] = out["pred_item_id_internal"].map(internal_to_raw).astype("Int64")
-    if "rank" not in out.columns:
-        out["rank"] = out.groupby("example_id").cumcount() + 1
-    if "score" not in out.columns:
-        out["score"] = pd.NA
-    out["model_key"] = SRGNN_MODEL_KEY
-    columns = [
-        "model_key",
-        "example_id",
-        "session_id",
-        "rank",
-        "pred_item_id_internal",
-        "pred_item_id_raw",
-        "score",
-    ]
-    return out[columns]
-
-
-def _write_prediction_todo(
-    inherited_root: Path,
-    backbone: Path,
-    source_model: Path,
-    source_test: Path,
-    top_k: int,
-) -> Path:
-    todo_path = inherited_root / "PREDICTIONS_EXPORT_TODO.md"
-    torch_state = "available" if importlib.util.find_spec("torch") else "not installed"
-    todo_path.write_text(
-        "\n".join(
-            [
-                "# SR-GNN Prediction Export TODO",
-                "",
-                "`predictions.parquet` was not found in the backbone repo.",
-                f"Torch status in this DDM environment: `{torch_state}`.",
-                "",
-                "No SR-GNN retraining is needed. To export predictions, use the already trained model:",
-                "",
-                f"- Model directory: `{source_model}`",
-                f"- Test examples: `{source_test}`",
-                f"- Backbone repo: `{backbone}`",
-                f"- Top K: `{top_k}`",
-                "",
-                "Expected output schema:",
-                "",
-                "- `example_id`",
-                "- `session_id`",
-                "- `rank`",
-                "- `pred_item_id_internal`",
-                "- `pred_item_id_raw`",
-                "- `score` when available",
-                "",
-                "The DDM downstream code assumes this schema and will use native aggregate HR/MRR plus train-only baselines until the export exists.",
-            ]
-        ),
-        encoding="utf-8",
-    )
-    return todo_path
-
-
-def _try_export_predictions_if_torch_available(
-    predictions_path: Path,
-    source_model: Path,
-    source_examples: pd.DataFrame,
-    examples: pd.DataFrame,
-    internal_to_raw: dict[int, int],
-    top_k: int,
-    backbone: Path,
-) -> None:
-    if importlib.util.find_spec("torch") is None:
-        return
-    sys.path.insert(0, str(backbone / "src"))
-    from recsys.models.srgnn import SRGNNRecommender  # type: ignore
-
-    model = SRGNNRecommender.load(source_model)
-    rows: list[dict[str, object]] = []
-    for idx, row in source_examples.reset_index(drop=True).iterrows():
-        example = examples.iloc[idx]
-        recs = model.recommend_from_graph(row["x"], row["edge_index"], row["alias_inputs"], top_k=top_k)
-        for rank, internal_id in enumerate(recs, start=1):
-            rows.append(
-                {
-                    "model_key": SRGNN_MODEL_KEY,
-                    "example_id": int(example["example_id"]),
-                    "session_id": int(example["session_id"]),
-                    "rank": rank,
-                    "pred_item_id_internal": int(internal_id),
-                    "pred_item_id_raw": internal_to_raw.get(int(internal_id)),
-                    "score": pd.NA,
-                }
-            )
-    save_parquet(pd.DataFrame(rows), predictions_path)
+def validate_local_inherited_context(project_root: str | Path = ".") -> dict[str, Path]:
+    """Validate the already downloaded inherited bundle."""
+    root = _project_root(project_root)
+    config = load_config(root / "configs/project_config.yaml")
+    bundle = bundle_directory(root, config)
+    validate_inherited_bundle(bundle, config)
+    paths = bundle_paths(root, config)
+    return {name: path for name, path in paths.items() if path.exists()}
 
 
 def compute_metrics_and_kpis(project_root: str | Path = ".") -> dict[str, Path]:
-    """Compute offline metrics, train-only baselines, recommendations, and KPI marts."""
+    """Compute offline metrics, recommendation eval rows, and proxy KPI marts."""
     root = _project_root(project_root)
     config = load_config(root / "configs/project_config.yaml")
-    inheritance = inherit_recsys_context(root)
     _ensure_clean_layer(root, config)
+    inherited = validate_local_inherited_context(root)
 
-    inherited_root = _inheritance_root(root, config)
+    top_k = _top_k(config)
     mart_root = _resolve(root, config["outputs"]["mart_root"])
-    backbone = _backbone_root(root, config)
-    top_k = int(config["inheritance"]["top_k"])
+    processed_root = _resolve(root, config["outputs"]["processed_root"])
 
-    test_examples = pd.read_parquet(inheritance["test_examples"])
-    item_vocab = read_json(inheritance["item_vocab"])
-    catalog_size = int(item_vocab.get("size") or len(item_vocab.get("item2id", {})))
+    test_examples = _normalise_test_examples(pd.read_parquet(inherited["test_examples"]))
+    predictions = _normalise_predictions(pd.read_parquet(inherited["predictions"]), config)
+    item_vocab = read_json(inherited["item_vocab"])
+    catalog_size = int(item_vocab.get("size") or len(item_vocab.get("item2id", {})) or len(item_vocab.get("id2item", {})))
     dim_item = pd.read_parquet(mart_root / "dim_item.parquet")
     session_summary = pd.read_parquet(mart_root / "fact_session_summary.parquet")
-    purchases = pd.read_parquet(_resolve(root, config["outputs"]["processed_root"]) / "clean_purchases.parquet")
-    train_interactions = pd.read_parquet(
-        backbone
-        / "data"
-        / "versions"
-        / config["inheritance"]["data_version"]
-        / "interim"
-        / "train_interactions.parquet"
-    )
+    purchases = pd.read_parquet(processed_root / "clean_purchases.parquet")
 
-    prediction_frames: list[pd.DataFrame] = []
-    srgnn_predictions_path = inherited_root / "predictions.parquet"
-    srgnn_predictions_available = srgnn_predictions_path.exists()
-    if srgnn_predictions_available:
-        srgnn_predictions = pd.read_parquet(srgnn_predictions_path)
-        if "model_key" not in srgnn_predictions.columns:
-            srgnn_predictions["model_key"] = SRGNN_MODEL_KEY
-        prediction_frames.append(srgnn_predictions)
-
-    popularity_predictions = build_popularity_baseline(
-        train_interactions, test_examples, item_vocab=item_vocab, k=top_k, model_key=POPULARITY_MODEL_KEY
-    )
-    cooccurrence_predictions = build_cooccurrence_baseline(
-        train_interactions, test_examples, item_vocab=item_vocab, k=top_k, model_key=COOCCURRENCE_MODEL_KEY
-    )
-    prediction_frames.extend([popularity_predictions, cooccurrence_predictions])
-    fact_recommendations = pd.concat(prediction_frames, ignore_index=True)
-    fact_recommendations = fact_recommendations[
+    fact_recommendations = predictions[
         [
             "model_key",
             "example_id",
@@ -420,62 +125,68 @@ def compute_metrics_and_kpis(project_root: str | Path = ".") -> dict[str, Path]:
             "pred_item_id_raw",
             "score",
         ]
-    ]
+    ].copy()
+    manifest = read_json(inherited["manifest"])
+    train_interactions = _load_baseline_train_interactions(root, config, inherited, manifest)
+    if train_interactions is not None:
+        if not validate_no_leakage(train_interactions, test_examples):
+            raise ValueError("Baseline train examples overlap test examples by date; refusing to compute baselines.")
+        baseline_predictions = pd.concat(
+            [
+                build_popularity_baseline(
+                    train_interactions,
+                    test_examples,
+                    item_vocab=item_vocab,
+                    k=top_k,
+                    model_key=POPULARITY_MODEL_KEY,
+                ),
+                build_cooccurrence_baseline(
+                    train_interactions,
+                    test_examples,
+                    item_vocab=item_vocab,
+                    k=top_k,
+                    model_key=COOCCURRENCE_MODEL_KEY,
+                ),
+            ],
+            ignore_index=True,
+        )
+        fact_recommendations = pd.concat([fact_recommendations, baseline_predictions], ignore_index=True)
 
     metric_rows: list[dict[str, object]] = []
+    eval_frames: list[pd.DataFrame] = []
+    kpi_frames: list[pd.DataFrame] = []
     scored_by_model: dict[str, pd.DataFrame] = {}
 
-    native_metrics = _load_native_metrics(inheritance.get("metrics"))
-    if native_metrics and not srgnn_predictions_available:
-        for metric_name, value in [
-            (f"HR@{top_k}", native_metrics.get("hr@k")),
-            (f"MRR@{top_k}", native_metrics.get("mrr@k")),
-        ]:
-            metric_rows.append(
-                {
-                    "model_key": SRGNN_MODEL_KEY,
-                    "metric_name": metric_name,
-                    "metric_value": value,
-                    "k": top_k,
-                    "metric_scope": "offline_test",
-                    "source": "inherited_native_metrics",
-                    "warning_text": "Offline next-click metric; not real CTR or causal business impact.",
-                }
-            )
-        metric_rows.append(
-            {
-                "model_key": SRGNN_MODEL_KEY,
-                "metric_name": f"Catalog Coverage@{top_k}",
-                "metric_value": pd.NA,
-                "k": top_k,
-                "metric_scope": "offline_test",
-                "source": "missing_prediction_export",
-                "warning_text": "Requires SR-GNN top-k prediction rows; see inherited prediction export TODO.",
-            }
+    for model_key, model_predictions in fact_recommendations.groupby("model_key", sort=False):
+        metric_source = (
+            "train_split_classic_baseline"
+            if model_key in {POPULARITY_MODEL_KEY, COOCCURRENCE_MODEL_KEY}
+            else "inherited_model_prediction_rows"
         )
-
-    for model_key, predictions in fact_recommendations.groupby("model_key", sort=False):
-        if model_key == SRGNN_MODEL_KEY:
-            source = "inherited_prediction_rows"
-        else:
-            source = "computed_train_only_baseline"
+        metric_warning = (
+            "Offline classic-method benchmark; not a production model or causal business impact."
+            if model_key in {POPULARITY_MODEL_KEY, COOCCURRENCE_MODEL_KEY}
+            else "Offline next-click metric; not real CTR or causal business impact."
+        )
         metrics = evaluate_topk_predictions(
-            predictions,
+            model_predictions,
             test_examples,
             k=top_k,
             catalog_size=catalog_size,
-            prediction_item_col="pred_item_id_internal",
-            target_item_col="target_item_id_internal",
+            prediction_item_col=_prediction_item_column(model_predictions),
+            target_item_col=_target_item_column(test_examples),
         )
         scored = score_topk_predictions(
-            predictions,
+            model_predictions,
             test_examples,
             k=top_k,
-            prediction_item_col="pred_item_id_internal",
-            target_item_col="target_item_id_internal",
+            prediction_item_col=_prediction_item_column(model_predictions),
+            target_item_col=_target_item_column(test_examples),
         )
         scored = enrich_scored_examples_for_value(scored, test_examples, dim_item, purchases)
         scored_by_model[model_key] = scored
+        eval_frames.append(_build_fact_recommendation_eval(model_key, scored, session_summary))
+        kpi_frames.append(compute_model_proxy_kpis(model_key, scored, k=top_k, session_summary=session_summary))
         for metric_name in [f"HR@{top_k}", f"MRR@{top_k}", f"Catalog Coverage@{top_k}"]:
             metric_rows.append(
                 {
@@ -484,51 +195,19 @@ def compute_metrics_and_kpis(project_root: str | Path = ".") -> dict[str, Path]:
                     "metric_value": metrics[metric_name],
                     "k": top_k,
                     "metric_scope": "offline_test",
-                    "source": source,
-                    "warning_text": "Offline next-click metric; not real CTR or causal business impact.",
+                    "source": metric_source,
+                    "warning_text": metric_warning,
                 }
             )
 
+    metric_rows.extend(_optional_baseline_metric_rows(inherited.get("baseline_metrics"), top_k))
     fact_metrics = pd.DataFrame(metric_rows)
+    fact_marketing_kpis = pd.concat(kpi_frames, ignore_index=True) if kpi_frames else pd.DataFrame()
     fact_test_examples = _build_fact_test_examples(test_examples, dim_item, session_summary)
-    eval_frames = [
-        _build_fact_recommendation_eval(model_key, scored, session_summary)
-        for model_key, scored in scored_by_model.items()
-    ]
     fact_recommendation_eval = (
         pd.concat(eval_frames, ignore_index=True) if eval_frames else _empty_recommendation_eval()
     )
-    dim_model = _build_dim_model(top_k)
-    baseline_scored = scored_by_model.get(POPULARITY_MODEL_KEY)
-    baseline_values = None
-    if baseline_scored is not None:
-        baseline_values = {
-            "hr": float(baseline_scored["hit_at_k"].mean()),
-            "revenue_weighted_hr": revenue_weighted_hit_rate(baseline_scored),
-        }
-
-    kpi_frames: list[pd.DataFrame] = []
-    if native_metrics and SRGNN_MODEL_KEY not in scored_by_model:
-        kpi_frames.append(
-            native_metric_proxy_kpis(
-                SRGNN_MODEL_KEY,
-                float(native_metrics["hr@k"]),
-                k=top_k,
-                baseline_hr=baseline_values["hr"] if baseline_values else None,
-            )
-        )
-    for model_key, scored in scored_by_model.items():
-        compare_to_popularity = baseline_values if model_key != POPULARITY_MODEL_KEY else None
-        kpi_frames.append(
-            compute_model_proxy_kpis(
-                model_key,
-                scored,
-                k=top_k,
-                session_summary=session_summary,
-                baseline_values=compare_to_popularity,
-            )
-        )
-    fact_marketing_kpis = pd.concat(kpi_frames, ignore_index=True) if kpi_frames else pd.DataFrame()
+    dim_model = _build_dim_model(inherited["manifest"], fact_recommendations["model_key"].unique().tolist(), top_k)
 
     outputs = {
         "fact_metrics": mart_root / "fact_metrics.parquet",
@@ -547,11 +226,177 @@ def compute_metrics_and_kpis(project_root: str | Path = ".") -> dict[str, Path]:
     return outputs
 
 
-def _load_native_metrics(path: Path | str | None) -> dict[str, float]:
-    if not path:
-        return {}
+def prepare_powerbi_marts(project_root: str | Path = ".") -> dict[str, Path]:
+    """Prepare PostgreSQL/Power BI-ready mart parquet tables."""
+    root = _project_root(project_root)
+    config = load_config(root / "configs/project_config.yaml")
+    _ensure_clean_layer(root, config)
+    metric_outputs = compute_metrics_and_kpis(root)
+
+    mart_root = _resolve(root, config["outputs"]["mart_root"])
+    purchases = pd.read_parquet(_resolve(root, config["outputs"]["processed_root"]) / "clean_purchases.parquet")
+    dim_item = pd.read_parquet(mart_root / "dim_item.parquet")
+
+    fact_purchases = purchases.merge(
+        dim_item[["item_id", "price_proxy", "primary_category_id"]],
+        on="item_id",
+        how="left",
+    ).copy()
+    fact_purchases.insert(0, "purchase_id", range(1, len(fact_purchases) + 1))
+
+    outputs = {
+        "dim_item": mart_root / "dim_item.parquet",
+        "fact_session_summary": mart_root / "fact_session_summary.parquet",
+        "fact_purchases": mart_root / "fact_purchases.parquet",
+        **metric_outputs,
+    }
+    save_parquet(fact_purchases, outputs["fact_purchases"])
+    _write_powerbi_notes(mart_root)
+    return outputs
+
+
+def check_report_inventory(project_root: str | Path = ".") -> dict[str, Path]:
+    """Check that dashboard/report tables and figure inventory exist."""
+    root = _project_root(project_root)
+    config = load_config(root / "configs/project_config.yaml")
+    mart_root = _resolve(root, config["outputs"]["mart_root"])
+    required_marts = [
+        "dim_item.parquet",
+        "dim_model.parquet",
+        "fact_session_summary.parquet",
+        "fact_purchases.parquet",
+        "fact_test_examples.parquet",
+        "fact_recommendations.parquet",
+        "fact_recommendation_eval.parquet",
+        "fact_metrics.parquet",
+        "fact_marketing_kpis.parquet",
+    ]
+    missing = [name for name in required_marts if not (mart_root / name).exists()]
+    if missing:
+        raise FileNotFoundError(f"Missing report mart tables: {missing}. Run `make marts` first.")
+    figures_dir = root / "reports" / "figures"
+    if not figures_dir.exists() or not list(figures_dir.glob("*.png")):
+        raise FileNotFoundError("No report figures found under reports/figures.")
+    return {"mart_root": mart_root, "figures_dir": figures_dir}
+
+
+def _normalise_test_examples(examples: pd.DataFrame) -> pd.DataFrame:
+    out = examples.copy()
+    if "target_item_id_internal" not in out.columns and "pos_items" in out.columns:
+        out["target_item_id_internal"] = out["pos_items"]
+    if "target_item_id_raw" not in out.columns and "target_item_id_internal" in out.columns:
+        out["target_item_id_raw"] = pd.NA
+    if "session_id" not in out.columns:
+        out["session_id"] = pd.NA
+    return out
+
+
+def _normalise_predictions(predictions: pd.DataFrame, config: dict[str, Any]) -> pd.DataFrame:
+    out = predictions.copy()
+    model_name = str(config.get("registry", {}).get("model_name", "recsys-serving"))
+    if "model_key" not in out.columns:
+        out["model_key"] = model_name
+    if "session_id" not in out.columns:
+        out["session_id"] = pd.NA
+    if "pred_item_id_internal" not in out.columns:
+        out["pred_item_id_internal"] = pd.NA
+    if "pred_item_id_raw" not in out.columns:
+        out["pred_item_id_raw"] = pd.NA
+    if "score" not in out.columns:
+        out["score"] = pd.NA
+    out["rank"] = pd.to_numeric(out["rank"], errors="coerce").astype("Int64")
+    return out
+
+
+def _prediction_item_column(predictions: pd.DataFrame) -> str:
+    return "pred_item_id_internal" if predictions["pred_item_id_internal"].notna().any() else "pred_item_id_raw"
+
+
+def _target_item_column(test_examples: pd.DataFrame) -> str:
+    return (
+        "target_item_id_internal"
+        if test_examples["target_item_id_internal"].notna().any()
+        else "target_item_id_raw"
+    )
+
+
+def _optional_baseline_metric_rows(path: Path | None, top_k: int) -> list[dict[str, object]]:
+    if path is None or not path.exists():
+        return []
     payload = read_json(path)
-    return {key: float(value) for key, value in payload.items() if key in {"hr@k", "mrr@k"}}
+    rows: list[dict[str, object]] = []
+    for model_key, metrics in payload.items():
+        if not isinstance(metrics, dict):
+            continue
+        for source_name, target_name in [
+            ("hr@k", f"HR@{top_k}"),
+            ("mrr@k", f"MRR@{top_k}"),
+            ("coverage@k", f"Catalog Coverage@{top_k}"),
+        ]:
+            if source_name not in metrics:
+                continue
+            rows.append(
+                {
+                    "model_key": model_key,
+                    "metric_name": target_name,
+                    "metric_value": float(metrics[source_name]),
+                    "k": top_k,
+                    "metric_scope": "offline_test",
+                    "source": "inherited_baseline_metrics",
+                    "warning_text": "Train-safe baseline metric inherited from registry export.",
+                }
+            )
+    return rows
+
+
+def _load_baseline_train_interactions(
+    root: Path,
+    config: dict[str, Any],
+    inherited: dict[str, Path],
+    manifest: dict[str, Any],
+) -> pd.DataFrame | None:
+    """Load compatible train examples for classic-method offline baselines."""
+    candidates: list[Path] = []
+    inheritance = config.get("inheritance", {})
+    source_repo = _context_repo_path(root, config)
+
+    explicit = str(inheritance.get("train_examples_path") or "").strip()
+    if explicit:
+        candidates.append(_source_repo_path(source_repo, explicit))
+
+    context_artifacts = manifest.get("context_artifacts", {})
+    if isinstance(context_artifacts, dict):
+        train_path = str(context_artifacts.get("train_examples_path") or "").strip()
+        if train_path:
+            candidates.append(Path(train_path))
+
+    model_artifact_dir = inherited.get("model_artifact", root / "__missing__")
+    bundle_train_examples = model_artifact_dir / "train_examples.parquet"
+    if bundle_train_examples.exists():
+        candidates.append(bundle_train_examples)
+
+    model_config_path = model_artifact_dir / "config.json"
+    if model_config_path.exists():
+        model_config = read_json(model_config_path)
+        data_cfg = model_config.get("data", {})
+        if isinstance(data_cfg, dict) and data_cfg.get("train_examples_path"):
+            candidates.append(_source_repo_path(source_repo, data_cfg["train_examples_path"]))
+
+    for path in candidates:
+        if path.exists():
+            return pd.read_parquet(path)
+    return None
+
+
+def _context_repo_path(root: Path, config: dict[str, Any]) -> Path:
+    path_str = str(config.get("inheritance", {}).get("context_repo_path") or "").strip()
+    path = Path(path_str) if path_str else Path(".")
+    return path if path.is_absolute() else (root / path).resolve()
+
+
+def _source_repo_path(source_repo: Path, value: str | Path) -> Path:
+    path = Path(str(value))
+    return path if path.is_absolute() else source_repo / path
 
 
 def _build_fact_test_examples(
@@ -559,12 +404,7 @@ def _build_fact_test_examples(
     dim_item: pd.DataFrame,
     session_summary: pd.DataFrame,
 ) -> pd.DataFrame:
-    columns = [
-        "example_id",
-        "session_id",
-        "target_item_id_internal",
-        "target_item_id_raw",
-    ]
+    columns = ["example_id", "session_id", "target_item_id_internal", "target_item_id_raw"]
     out = test_examples[[column for column in columns if column in test_examples.columns]].copy()
 
     if "eventdate" in test_examples.columns:
@@ -608,13 +448,9 @@ def _build_fact_test_examples(
 
     if {"session_id", "has_purchase"}.issubset(session_summary.columns) and "session_id" in out.columns:
         session_columns = [
-            column
-            for column in ["session_id", "has_purchase", "session_length_bucket"]
-            if column in session_summary.columns
+            column for column in ["session_id", "has_purchase", "session_length_bucket"] if column in session_summary.columns
         ]
-        session_attrs = session_summary[session_columns].rename(
-            columns={"has_purchase": "is_purchase_session"}
-        )
+        session_attrs = session_summary[session_columns].rename(columns={"has_purchase": "is_purchase_session"})
         out = out.merge(session_attrs, on="session_id", how="left")
         out["is_purchase_session"] = out["is_purchase_session"].fillna(False)
     else:
@@ -660,35 +496,36 @@ def _empty_recommendation_eval() -> pd.DataFrame:
     )
 
 
-def _build_dim_model(top_k: int) -> pd.DataFrame:
-    return pd.DataFrame(
-        [
+def _build_dim_model(manifest_path: Path, model_keys: list[str], top_k: int) -> pd.DataFrame:
+    manifest = read_json(manifest_path)
+    rows = []
+    for model_key in model_keys:
+        if model_key == POPULARITY_MODEL_KEY:
+            model_family = "classic_popularity"
+            model_role = "offline_classic_benchmark"
+            source_type = "train_split_popularity_baseline"
+            warning = "Offline classic-method benchmark; not a production model or causal marketing measurement."
+        elif model_key == COOCCURRENCE_MODEL_KEY:
+            model_family = "classic_cooccurrence"
+            model_role = "offline_classic_benchmark"
+            source_type = "train_split_transition_baseline"
+            warning = "Offline classic-method benchmark; not a production model or causal marketing measurement."
+        else:
+            model_family = str(manifest.get("model_profile", "registered_recommender"))
+            model_role = "inherited_configured_artifact"
+            source_type = "mlflow_artifact_with_intermediate_context_inference"
+            warning = "Offline next-click model; not a causal marketing measurement."
+        rows.append(
             {
-                "model_key": SRGNN_MODEL_KEY,
-                "model_family": "SR-GNN",
-                "model_role": "selected_backbone",
+                "model_key": model_key,
+                "model_family": model_family,
+                "model_role": model_role,
                 "top_k": top_k,
-                "source_type": "inherited_trained_artifact",
-                "warning_text": "Offline next-click model; not a causal marketing measurement.",
-            },
-            {
-                "model_key": POPULARITY_MODEL_KEY,
-                "model_family": "Popularity",
-                "model_role": "train_only_baseline",
-                "top_k": top_k,
-                "source_type": "computed_in_ddm_from_train_interactions",
-                "warning_text": "Offline train-only baseline; not a production recommender.",
-            },
-            {
-                "model_key": COOCCURRENCE_MODEL_KEY,
-                "model_family": "Co-occurrence",
-                "model_role": "train_only_baseline",
-                "top_k": top_k,
-                "source_type": "computed_in_ddm_from_train_interactions",
-                "warning_text": "Offline train-only baseline; not a production recommender.",
-            },
-        ]
-    )
+                "source_type": source_type,
+                "warning_text": warning,
+            }
+        )
+    return pd.DataFrame(rows)
 
 
 def _build_fact_recommendation_eval(
@@ -719,13 +556,9 @@ def _build_fact_recommendation_eval(
 
     if {"session_id", "has_purchase"}.issubset(session_summary.columns) and "session_id" in out.columns:
         session_columns = [
-            column
-            for column in ["session_id", "has_purchase", "session_length_bucket"]
-            if column in session_summary.columns
+            column for column in ["session_id", "has_purchase", "session_length_bucket"] if column in session_summary.columns
         ]
-        session_attrs = session_summary[session_columns].rename(
-            columns={"has_purchase": "is_purchase_session"}
-        )
+        session_attrs = session_summary[session_columns].rename(columns={"has_purchase": "is_purchase_session"})
         drop_columns = [column for column in ["is_purchase_session", "session_length_bucket"] if column in out.columns]
         out = out.drop(columns=drop_columns)
         out = out.merge(session_attrs, on="session_id", how="left")
@@ -767,35 +600,6 @@ def _ensure_clean_layer(root: Path, config: dict[str, Any]) -> None:
         build_clean_layer(root)
 
 
-def prepare_powerbi_marts(project_root: str | Path = ".") -> dict[str, Path]:
-    """Prepare PostgreSQL/Power BI-ready mart parquet tables."""
-    root = _project_root(project_root)
-    config = load_config(root / "configs/project_config.yaml")
-    _ensure_clean_layer(root, config)
-    metric_outputs = compute_metrics_and_kpis(root)
-
-    mart_root = _resolve(root, config["outputs"]["mart_root"])
-    purchases = pd.read_parquet(_resolve(root, config["outputs"]["processed_root"]) / "clean_purchases.parquet")
-    dim_item = pd.read_parquet(mart_root / "dim_item.parquet")
-
-    fact_purchases = purchases.merge(
-        dim_item[["item_id", "price_proxy", "primary_category_id"]],
-        on="item_id",
-        how="left",
-    ).copy()
-    fact_purchases.insert(0, "purchase_id", range(1, len(fact_purchases) + 1))
-
-    outputs = {
-        "dim_item": mart_root / "dim_item.parquet",
-        "fact_session_summary": mart_root / "fact_session_summary.parquet",
-        "fact_purchases": mart_root / "fact_purchases.parquet",
-        **metric_outputs,
-    }
-    save_parquet(fact_purchases, outputs["fact_purchases"])
-    _write_powerbi_notes(mart_root)
-    return outputs
-
-
 def _write_powerbi_notes(mart_root: Path) -> None:
     notes = mart_root / "powerbi_notes.md"
     notes.write_text(
@@ -828,8 +632,10 @@ def main(argv: list[str] | None = None) -> None:
         outputs = compute_metrics_and_kpis(root)
     elif command == "marts":
         outputs = prepare_powerbi_marts(root)
+    elif command == "report":
+        outputs = check_report_inventory(root)
     else:
-        raise SystemExit(f"Unknown command {command!r}. Use validate, inherit, metrics, or marts.")
+        raise SystemExit(f"Unknown command {command!r}. Use validate, inherit, metrics, marts, or report.")
 
     for name, path in outputs.items():
         print(f"{name}: {path}")
