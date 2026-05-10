@@ -1,0 +1,9 @@
+step,stage,scenario,count,pct
+1,All sessions,Trước (gốc),10020,100.0
+2,2+ views,Trước (gốc),10020,100.0
+3,5+ views (engaged),Trước (gốc),6357,63.44
+4,Purchase,Trước (gốc),440,4.39
+1,All sessions,Sau (có model),5460,100.0
+2,2+ views,Sau (có model),3542,64.87
+3,5+ views (engaged),Sau (có model),1092,20.0
+4,Purchase,Sau (có model),210,3.85

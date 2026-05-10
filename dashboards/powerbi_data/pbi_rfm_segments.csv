@@ -1,0 +1,9 @@
+segment,scenario,n_sessions,session_pct,sort_order
+High-intent Buyer,Trước (gốc),308,3.07,1
+Browser,Trước (gốc),6049,60.37,2
+Quick Buyer,Trước (gốc),132,1.32,3
+Bouncer,Trước (gốc),3531,35.24,4
+High-intent Buyer,Sau (có model),87,1.59,1
+Browser,Sau (có model),1005,18.41,2
+Quick Buyer,Sau (có model),123,2.25,3
+Bouncer,Sau (có model),4245,77.75,4
