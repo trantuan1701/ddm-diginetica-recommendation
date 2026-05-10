@@ -9,7 +9,7 @@
 #
 
 dvc remote add gdrive gdrive://$GOOGLE_DRIVE_ID/dvc
-dvc remote modify myremote gdrive_acknowledge_abuse true
+dvc remote modify gdrive gdrive_acknowledge_abuse true
 dvc remote modify --local gdrive gdrive_client_id $GOOGLE_DRIVE_CLIENT_ID
 dvc remote modify --local gdrive gdrive_client_secret $GOOGLE_DRIVE_CLIENT_SECRET
 

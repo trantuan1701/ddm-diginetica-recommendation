@@ -1,6 +1,6 @@
 project:
   name: ddm-diginetica-recommendation
-  description: Minimal DDM analytics layer over inherited SR-GNN recommendation outputs.
+  description: Course-facing DDM analytics layer over inherited recommender artifacts.
 
 paths:
   raw_interactions_path: data/raw/diginetica/train-item-views.csv
@@ -9,18 +9,24 @@ paths:
   raw_purchases_path: data/raw/diginetica/train-purchases.csv
   raw_queries_path: data/raw/diginetica/train-queries.csv
   raw_clicks_path: data/raw/diginetica/train-clicks.csv
-  backbone_repo_path: ../recsys-group-project
+
+registry:
+  tracking_uri: ""
+  dagshub_repo_owner: lytlong.pers
+  dagshub_repo_name: recsys-group-project
+  dagshub_username_env_var: DAGSHUB_USERNAME
+  dagshub_token_env_var: DAGSHUB_USER_TOKEN
+  model_name: recsys-serving
+  model_alias: Production
+  model_version: ""
+  artifact_path: registered_model
 
 inheritance:
-  data_version: v1_strict_filter
-  model_profile: srgnn_fc
   top_k: 20
-  inherited_root: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20
-  test_examples_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/test_examples.parquet
-  predictions_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/predictions.parquet
-  item_vocab_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/item_vocab.json
-  metrics_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/metrics.json
-  item_metadata_path: data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/item_metadata.parquet
+  inherited_root: data/inherited/recsys
+  test_examples_path: ""
+  train_examples_path: ""
+  item_vocab_path: ""
 
 outputs:
   processed_root: data/processed

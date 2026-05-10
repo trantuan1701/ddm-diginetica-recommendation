@@ -14,8 +14,7 @@ PROXY_WARNING = (
 def price_from_pricelog2(pricelog2: float | int | None) -> float | None:
     """Convert Diginetica `pricelog2` into a price proxy.
 
-    The backbone serving code uses `2^pricelog2 - 1`. Treat the result as an
-    offline price proxy, not audited revenue.
+    DDM uses `2^pricelog2 - 1` as an offline price proxy, not audited revenue.
     """
     if pricelog2 is None or pd.isna(pricelog2):
         return None

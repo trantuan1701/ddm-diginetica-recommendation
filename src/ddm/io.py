@@ -1,8 +1,8 @@
 """Input/output helpers for local DDM analytics files.
 
 These helpers are intentionally small. The DDM repo should consume exported
-tables and metadata from the SR-GNN backbone, not import backbone training or
-serving code.
+tables and metadata from the registry bundle, not import training or serving
+code.
 """
 
 from __future__ import annotations
