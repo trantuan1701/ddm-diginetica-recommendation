@@ -188,6 +188,31 @@ def _apply_post_load_schema(engine, schema_path: Path) -> None:
     print("Foreign-key constraints added.")
 
 
+def _wipe_current_schema(engine) -> None:
+    print("Fresh flag detected. Wiping all tables in the current PostgreSQL schema...")
+    with engine.begin() as conn:
+        table_rows = conn.execute(
+            text(
+                """
+                SELECT quote_ident(table_schema) || '.' || quote_ident(table_name) AS table_name
+                FROM information_schema.tables
+                WHERE table_schema = current_schema()
+                  AND table_type = 'BASE TABLE'
+                ORDER BY table_name
+                """
+            )
+        ).fetchall()
+        table_names = [row[0] for row in table_rows]
+        if not table_names:
+            print("No existing tables found.")
+            return
+
+        for table_name in table_names:
+            print(f"Dropping table {table_name}...")
+        conn.execute(text(f"DROP TABLE IF EXISTS {', '.join(table_names)} CASCADE"))
+    print("Database schema wiped successfully.")
+
+
 def _db_columns(engine, table_name: str) -> list[str]:
     with engine.connect() as conn:
         result = conn.execute(
@@ -434,12 +459,7 @@ def upload_to_db(fresh=False):
     engine = create_engine(postgres_url)
 
     if fresh:
-        print("Fresh flag detected. Dropping existing schema tables...")
-        with engine.begin() as conn:
-            for table_name in reversed(TABLE_LOAD_ORDER):
-                print(f"Dropping table {table_name}...")
-                conn.execute(text(f"DROP TABLE IF EXISTS {table_name} CASCADE"))
-        print("Tables dropped successfully.")
+        _wipe_current_schema(engine)
 
     _apply_schema(engine, Path("sql/schema.sql"))
 
@@ -453,7 +473,7 @@ def upload_to_db(fresh=False):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload DDM Power BI star-schema tables to PostgreSQL.")
-    parser.add_argument("--fresh", action="store_true", help="Drop existing tables before uploading.")
+    parser.add_argument("--fresh", action="store_true", help="Drop all tables in the current schema before uploading.")
     args = parser.parse_args()
 
     upload_to_db(fresh=args.fresh)
