@@ -1,5 +1,14 @@
 {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "kpi_avg_session_duration",
+  "position": {
+    "x": 24,
+    "y": 144,
+    "z": 0,
+    "height": 140,
+    "width": 296,
+    "tabOrder": 0
+  },
   "visual": {
     "visualType": "card",
     "query": {
@@ -7,7 +16,6 @@
         "Values": {
           "projections": [
             {
-              "queryRef": "public dim_session.Avg Session Duration (min)",
               "field": {
                 "Measure": {
                   "Expression": {
@@ -18,6 +26,7 @@
                   "Property": "Avg Session Duration (min)"
                 }
               },
+              "queryRef": "public dim_session.Avg Session Duration (min)",
               "nativeQueryRef": "Avg Session Duration (min)"
             }
           ]
@@ -42,8 +51,6 @@
         "isDefaultSort": true
       }
     },
-    "objects": {},
-    "drillFilterOtherVisuals": true,
     "visualContainerObjects": {
       "title": [
         {
@@ -78,15 +85,25 @@
           }
         }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   },
-  "position": {
-    "x": 24,
-    "y": 144,
-    "z": 0,
-    "width": 296,
-    "height": 140,
-    "tabOrder": 0
-  },
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json"
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "48a239d7d3dab79ac206",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public dim_session"
+              }
+            },
+            "Property": "Avg Session Duration (min)"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
 }

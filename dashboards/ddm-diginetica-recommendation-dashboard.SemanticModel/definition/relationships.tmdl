@@ -71,3 +71,8 @@ relationship 72d33756-5ea6-4e73-b984-b4b9192d443f
 
 	annotation PBI_IsFromSource = FS
 
+relationship b267b4ee-7275-4f45-a092-77198287f77a
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'public fact_kpi_summary'.date_key
+	toColumn: LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb.Date
+

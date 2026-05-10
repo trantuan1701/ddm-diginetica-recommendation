@@ -1,5 +1,14 @@
 {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "kpi_revenue_per_session",
+  "position": {
+    "x": 960,
+    "y": 144,
+    "z": 0,
+    "height": 140,
+    "width": 296,
+    "tabOrder": 0
+  },
   "visual": {
     "visualType": "card",
     "query": {
@@ -7,7 +16,6 @@
         "Values": {
           "projections": [
             {
-              "queryRef": "public fact_purchases.Revenue per Session Proxy",
               "field": {
                 "Measure": {
                   "Expression": {
@@ -18,6 +26,7 @@
                   "Property": "Revenue per Session Proxy"
                 }
               },
+              "queryRef": "public fact_purchases.Revenue per Session Proxy",
               "nativeQueryRef": "Revenue per Session Proxy"
             }
           ]
@@ -42,8 +51,6 @@
         "isDefaultSort": true
       }
     },
-    "objects": {},
-    "drillFilterOtherVisuals": true,
     "visualContainerObjects": {
       "title": [
         {
@@ -78,15 +85,7 @@
           }
         }
       ]
-    }
-  },
-  "position": {
-    "x": 960,
-    "y": 144,
-    "width": 296,
-    "height": 140,
-    "z": 0,
-    "tabOrder": 0
-  },
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json"
+    },
+    "drillFilterOtherVisuals": true
+  }
 }

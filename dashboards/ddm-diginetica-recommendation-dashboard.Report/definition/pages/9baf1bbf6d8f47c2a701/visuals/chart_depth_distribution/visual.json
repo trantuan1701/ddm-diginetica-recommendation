@@ -1,5 +1,14 @@
 {
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "chart_depth_distribution",
+  "position": {
+    "x": 24,
+    "y": 504,
+    "z": 0,
+    "height": 192,
+    "width": 608,
+    "tabOrder": 0
+  },
   "visual": {
     "visualType": "clusteredColumnChart",
     "query": {
@@ -7,7 +16,6 @@
         "Category": {
           "projections": [
             {
-              "queryRef": "public dim_session.total_views",
               "field": {
                 "Column": {
                   "Expression": {
@@ -18,14 +26,15 @@
                   "Property": "total_views"
                 }
               },
-              "nativeQueryRef": "total_views"
+              "queryRef": "public dim_session.total_views",
+              "nativeQueryRef": "total_views",
+              "active": true
             }
           ]
         },
         "Y": {
           "projections": [
             {
-              "queryRef": "public dim_session.Total Sessions",
               "field": {
                 "Measure": {
                   "Expression": {
@@ -36,6 +45,7 @@
                   "Property": "Total Sessions"
                 }
               },
+              "queryRef": "public dim_session.Total Sessions",
               "nativeQueryRef": "Total Sessions"
             }
           ]
@@ -60,8 +70,6 @@
         "isDefaultSort": true
       }
     },
-    "objects": {},
-    "drillFilterOtherVisuals": true,
     "visualContainerObjects": {
       "title": [
         {
@@ -96,15 +104,39 @@
           }
         }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   },
-  "position": {
-    "x": 24,
-    "y": 504,
-    "z": 0,
-    "width": 608,
-    "height": 192,
-    "tabOrder": 0
-  },
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json"
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "fc5816e4e064cc20780d",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public dim_session"
+              }
+            },
+            "Property": "total_views"
+          }
+        },
+        "type": "Advanced"
+      },
+      {
+        "name": "d57152b44ab0038f4872",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public dim_session"
+              }
+            },
+            "Property": "Total Sessions"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
 }

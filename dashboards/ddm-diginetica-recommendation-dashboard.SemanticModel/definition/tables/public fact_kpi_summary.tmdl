@@ -1,0 +1,170 @@
+table 'public fact_kpi_summary'
+	lineageTag: 0f46f238-3b79-4436-9565-232c046904b2
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: 9a293535-d87d-4532-828e-2ee8dbb12f93
+		summarizeBy: none
+		sourceColumn: date_key
+
+		variation Variation
+			isDefault
+			relationship: b267b4ee-7275-4f45-a092-77198287f77a
+			defaultHierarchy: LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column total_sessions
+		dataType: int64
+		formatString: 0
+		lineageTag: 4ba7168e-bf62-4877-8b30-3d84c4d3547e
+		summarizeBy: sum
+		sourceColumn: total_sessions
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_views
+		dataType: int64
+		formatString: 0
+		lineageTag: 533d0d11-bd68-4bf2-a74c-b0c0dc75ceca
+		summarizeBy: sum
+		sourceColumn: total_views
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_purchases
+		dataType: int64
+		formatString: 0
+		lineageTag: a53df400-6e1f-4c05-a4b0-bb2bb3c1f030
+		summarizeBy: sum
+		sourceColumn: total_purchases
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_orders
+		dataType: int64
+		formatString: 0
+		lineageTag: 48f1437e-60d6-4a3a-97df-1b7a8b4ca8be
+		summarizeBy: sum
+		sourceColumn: total_orders
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_revenue_score
+		dataType: double
+		lineageTag: 639524a1-3d6c-4599-aca5-e1e02afadb86
+		summarizeBy: sum
+		sourceColumn: total_revenue_score
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column converted_sessions
+		dataType: int64
+		formatString: 0
+		lineageTag: 9e32febb-7667-4540-b5cf-4f67237bcbe4
+		summarizeBy: sum
+		sourceColumn: converted_sessions
+
+		annotation SummarizationSetBy = Automatic
+
+	column conversion_rate
+		dataType: double
+		lineageTag: 06f322c4-c42a-4ee4-8543-41b3bad80b5b
+		summarizeBy: sum
+		sourceColumn: conversion_rate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column revenue_per_session
+		dataType: double
+		lineageTag: 90408e10-da75-4ea6-9441-adf782b0bbf3
+		summarizeBy: sum
+		sourceColumn: revenue_per_session
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_session_depth
+		dataType: double
+		lineageTag: 6566bd6a-c5d1-4442-90ba-dbbff1ca3639
+		summarizeBy: sum
+		sourceColumn: avg_session_depth
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column avg_view_to_purchase
+		dataType: double
+		lineageTag: 37ae6b08-c6bd-48f3-9c4d-b2cecd022802
+		summarizeBy: sum
+		sourceColumn: avg_view_to_purchase
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column bounce_sessions
+		dataType: int64
+		formatString: 0
+		lineageTag: 09123205-be28-444e-b9d9-0ad0b9afc622
+		summarizeBy: sum
+		sourceColumn: bounce_sessions
+
+		annotation SummarizationSetBy = Automatic
+
+	column bounce_rate
+		dataType: double
+		lineageTag: 50cecdb3-f8df-4715-bec4-e1e68bd9b45c
+		summarizeBy: sum
+		sourceColumn: bounce_rate
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column unique_items_viewed
+		dataType: int64
+		formatString: 0
+		lineageTag: 7710b97c-b5b0-4ceb-b260-440212122b9b
+		summarizeBy: sum
+		sourceColumn: unique_items_viewed
+
+		annotation SummarizationSetBy = Automatic
+
+	column unique_items_purchased
+		dataType: int64
+		formatString: 0
+		lineageTag: b107344d-ed38-4b12-9f3a-e7a72e535d94
+		summarizeBy: sum
+		sourceColumn: unique_items_purchased
+
+		annotation SummarizationSetBy = Automatic
+
+	column inventory_coverage
+		dataType: double
+		lineageTag: 7c95378f-7c47-4143-9673-b8981818b939
+		summarizeBy: sum
+		sourceColumn: inventory_coverage
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'public fact_kpi_summary' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_kpi_summary = Source{[Schema="public",Item="fact_kpi_summary"]}[Data]
+				in
+				    public_fact_kpi_summary
+

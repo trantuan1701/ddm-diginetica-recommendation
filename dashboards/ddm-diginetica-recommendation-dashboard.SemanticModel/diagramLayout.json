@@ -4,8 +4,8 @@
     {
       "ordinal": 0,
       "scrollPosition": {
-        "x": 146.87318670241891,
-        "y": 196.20463872460542
+        "x": 553.54556088683216,
+        "y": 553.79426399641557
       },
       "nodes": [
         {
@@ -111,10 +111,23 @@
             "width": 234
           },
           "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1556.8743693155798,
+            "y": 1014.0910840318946
+          },
+          "nodeIndex": "public fact_kpi_summary",
+          "nodeLineageTag": "0f46f238-3b79-4436-9565-232c046904b2",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
         }
       ],
       "name": "All tables",
-      "zoomValue": 89.192590520569482,
+      "zoomValue": 63.287087723234116,
       "pinKeyFieldsToTop": false,
       "showExtraHeaderInfo": false,
       "hideKeyFieldsWhenCollapsed": false,
