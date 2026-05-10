@@ -3,7 +3,7 @@ table 'public dim_product'
 
 	column item_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 5c9ef627-8130-436a-8aed-8e516b9122dc
 		summarizeBy: none
 		sourceColumn: item_id
@@ -12,7 +12,7 @@ table 'public dim_product'
 
 	column pricelog2
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 9e1fefac-d282-4370-b0dd-640e7bdba421
 		summarizeBy: sum
 		sourceColumn: pricelog2
@@ -29,7 +29,7 @@ table 'public dim_product'
 
 	column pricelog2_known
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 99d6df70-61f3-4814-9ff8-abf68de25517
 		summarizeBy: sum
 		sourceColumn: pricelog2_known
@@ -55,12 +55,24 @@ table 'public dim_product'
 
 	column category_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: cb06439f-a17a-4bb9-b658-a108db829b69
 		summarizeBy: sum
 		sourceColumn: category_id
 
 		annotation SummarizationSetBy = Automatic
+
+	measure 'Known Price Items' = CALCULATE(DISTINCTCOUNT('public dim_product'[item_id]), KEEPFILTERS('public dim_product'[is_price_known] = TRUE()))
+		formatString: "#,0"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Total Items' = DISTINCTCOUNT('public dim_product'[item_id])
+		formatString: "#,0"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Inventory Coverage' = DIVIDE([Known Price Items], [Total Items])
+		formatString: "0.00%"
+		displayFolder: 'KPI Page 2'
 
 	partition 'public dim_product' = m
 		mode: import
@@ -71,3 +83,4 @@ table 'public dim_product'
 				in
 				    public_dim_product
 
+	annotation PBI_ResultType = Table

@@ -3,7 +3,7 @@ table 'public fact_purchases'
 
 	column purchase_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 4b98c886-764e-4dfa-98e6-76dad83684dd
 		summarizeBy: sum
 		sourceColumn: purchase_id
@@ -12,7 +12,7 @@ table 'public fact_purchases'
 
 	column date_key
 		dataType: dateTime
-		formatString: Long Date
+		formatString: "Long Date"
 		lineageTag: f16469c8-1773-4489-88f9-e81060f9e77f
 		summarizeBy: none
 		sourceColumn: date_key
@@ -23,7 +23,7 @@ table 'public fact_purchases'
 
 	column item_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 3ac28d23-53ac-42b8-abe2-49f607a807a8
 		summarizeBy: none
 		sourceColumn: item_id
@@ -32,7 +32,7 @@ table 'public fact_purchases'
 
 	column user_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 385e33e0-58c4-4984-be83-e5e9f9568230
 		summarizeBy: sum
 		sourceColumn: user_id
@@ -41,7 +41,7 @@ table 'public fact_purchases'
 
 	column session_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 73694f8c-c62a-40f2-af18-f676fd683cf9
 		summarizeBy: none
 		sourceColumn: session_id
@@ -50,7 +50,7 @@ table 'public fact_purchases'
 
 	column order_number
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 8306abf5-fbc0-406e-a3ec-1adb4f62ad93
 		summarizeBy: sum
 		sourceColumn: order_number
@@ -59,12 +59,52 @@ table 'public fact_purchases'
 
 	column purchase_count
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 37f9711e-7bf1-4057-8761-666eba602ed8
 		summarizeBy: sum
 		sourceColumn: purchase_count
 
 		annotation SummarizationSetBy = Automatic
+
+	measure 'Total Orders' = DISTINCTCOUNT('public fact_purchases'[order_number])
+		formatString: "#,0"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Total Revenue Proxy' = SUMX('public fact_purchases', VAR _price_log2 = RELATED('public dim_product'[pricelog2]) RETURN IF(ISBLANK(_price_log2), BLANK(), POWER(2.0, _price_log2) - 1.0))
+		formatString: "$#,0"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Revenue per Session Proxy' = DIVIDE([Total Revenue Proxy], 'public dim_session'[Total Sessions])
+		formatString: "$#,0.00"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Revenue Anonymous Sessions Proxy' = CALCULATE([Total Revenue Proxy], KEEPFILTERS('public dim_session'[session_type] = "anonymous"))
+		formatString: "$#,0"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Revenue Identified Sessions Proxy' = [Total Revenue Proxy] - [Revenue Anonymous Sessions Proxy]
+		formatString: "$#,0"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Percent Revenue Anonymous Sessions' = DIVIDE([Revenue Anonymous Sessions Proxy], [Total Revenue Proxy])
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Percent Revenue Identified Sessions' = DIVIDE([Revenue Identified Sessions Proxy], [Total Revenue Proxy])
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 1'
+
+	measure 'AOV Anonymous Sessions Proxy' = DIVIDE([Revenue Anonymous Sessions Proxy], CALCULATE([Total Orders], KEEPFILTERS('public dim_session'[session_type] = "anonymous")))
+		formatString: "$#,0.00"
+		displayFolder: 'Graph Page 1'
+
+	measure 'AOV Session Type Proxy' = DIVIDE([Total Revenue Proxy], [Total Orders])
+		formatString: "$#,0.00"
+		displayFolder: 'Graph Page 1'
+
+	measure 'AOV Identified Sessions Proxy' = DIVIDE([Revenue Identified Sessions Proxy], CALCULATE([Total Orders], KEEPFILTERS('public dim_session'[session_type] <> "anonymous")))
+		formatString: "$#,0.00"
+		displayFolder: 'Graph Page 1'
 
 	partition 'public fact_purchases' = m
 		mode: import
@@ -76,4 +116,3 @@ table 'public fact_purchases'
 				    public_fact_purchases
 
 	annotation PBI_ResultType = Table
-

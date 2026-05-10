@@ -1,0 +1,8 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
+  "name": "9baf1bbf6d8f47c2a701",
+  "displayName": "Page 2 - Behavior & Funnel",
+  "displayOption": "FitToPage",
+  "height": 720,
+  "width": 1280
+}

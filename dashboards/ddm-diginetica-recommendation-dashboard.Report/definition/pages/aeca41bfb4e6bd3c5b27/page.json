@@ -1,7 +1,7 @@
 {
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/page/2.1.0/schema.json",
   "name": "aeca41bfb4e6bd3c5b27",
-  "displayName": "Page 1",
+  "displayName": "Page 1 - Session Overview",
   "displayOption": "FitToPage",
   "height": 720,
   "width": 1280

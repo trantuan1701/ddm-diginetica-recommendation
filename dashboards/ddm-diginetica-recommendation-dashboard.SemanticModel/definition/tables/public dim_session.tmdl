@@ -3,7 +3,7 @@ table 'public dim_session'
 
 	column session_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 03648dde-a446-463b-be10-d570e6d28da9
 		summarizeBy: none
 		sourceColumn: session_id
@@ -12,7 +12,7 @@ table 'public dim_session'
 
 	column user_id
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: 877a11cd-edf7-41fa-a69d-ffdc91ff3e32
 		summarizeBy: none
 		sourceColumn: user_id
@@ -38,7 +38,7 @@ table 'public dim_session'
 
 	column total_views
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: d6ac380b-c8f0-4b0d-96ea-7a6daf924ebb
 		summarizeBy: sum
 		sourceColumn: total_views
@@ -47,12 +47,104 @@ table 'public dim_session'
 
 	column view_to_purchase_depth
 		dataType: int64
-		formatString: 0
+		formatString: "0"
 		lineageTag: a343649c-abea-4774-bd64-e107f1207afb
 		summarizeBy: sum
 		sourceColumn: view_to_purchase_depth
 
 		annotation SummarizationSetBy = Automatic
+
+	measure 'Total Sessions' = DISTINCTCOUNT('public dim_session'[session_id])
+		formatString: "#,0"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Purchasing Sessions' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[has_purchase] = TRUE()))
+		formatString: "#,0"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Conversion Rate' = DIVIDE([Purchasing Sessions], [Total Sessions])
+		formatString: "0.00%"
+		displayFolder: 'KPI Page 1'
+
+	measure 'Avg Session Depth' = AVERAGE('public dim_session'[total_views])
+		formatString: "0.00"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Bounce Sessions' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] <= 1))
+		formatString: "#,0"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Bounce Rate' = DIVIDE([Bounce Sessions], [Total Sessions])
+		formatString: "0.00%"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Avg Session Duration (min)' = AVERAGEX(VALUES('public dim_session'[session_id]), VAR _min_tf = CALCULATE(MIN('public fact_item_views'[timeframe])) VAR _max_tf = CALCULATE(MAX('public fact_item_views'[timeframe])) RETURN DIVIDE(_max_tf - _min_tf, 60.0))
+		formatString: "0.00"
+		displayFolder: 'KPI Page 2'
+
+	measure 'Anonymous Sessions' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[session_type] = "anonymous"))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Identified Sessions' = [Total Sessions] - [Anonymous Sessions]
+		formatString: "#,0"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Percent Anonymous Sessions' = DIVIDE([Anonymous Sessions], [Total Sessions])
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Percent Identified Sessions' = DIVIDE([Identified Sessions], [Total Sessions])
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Avg Actions Anonymous Session' = CALCULATE([Avg Session Depth], KEEPFILTERS('public dim_session'[session_type] = "anonymous"))
+		formatString: "0.00"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Avg Actions Identified Session' = CALCULATE([Avg Session Depth], KEEPFILTERS('public dim_session'[session_type] <> "anonymous"))
+		formatString: "0.00"
+		displayFolder: 'Graph Page 1'
+
+	measure 'Sessions (Views 1-5)' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] >= 1), KEEPFILTERS('public dim_session'[total_views] <= 5))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 2'
+
+	measure 'Sessions (Views 6-10)' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] >= 6), KEEPFILTERS('public dim_session'[total_views] <= 10))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 2'
+
+	measure 'Sessions (Views 11-20)' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] >= 11), KEEPFILTERS('public dim_session'[total_views] <= 20))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 2'
+
+	measure 'Sessions (Views 21-30)' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] >= 21), KEEPFILTERS('public dim_session'[total_views] <= 30))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 2'
+
+	measure 'Sessions (Views 31-100)' = CALCULATE([Total Sessions], KEEPFILTERS('public dim_session'[total_views] >= 31), KEEPFILTERS('public dim_session'[total_views] <= 100))
+		formatString: "#,0"
+		displayFolder: 'Graph Page 2'
+
+	measure 'CR (Views 1-5)' = CALCULATE([Conversion Rate], KEEPFILTERS('public dim_session'[total_views] >= 1), KEEPFILTERS('public dim_session'[total_views] <= 5))
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 2'
+
+	measure 'CR (Views 6-10)' = CALCULATE([Conversion Rate], KEEPFILTERS('public dim_session'[total_views] >= 6), KEEPFILTERS('public dim_session'[total_views] <= 10))
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 2'
+
+	measure 'CR (Views 11-20)' = CALCULATE([Conversion Rate], KEEPFILTERS('public dim_session'[total_views] >= 11), KEEPFILTERS('public dim_session'[total_views] <= 20))
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 2'
+
+	measure 'CR (Views 21-30)' = CALCULATE([Conversion Rate], KEEPFILTERS('public dim_session'[total_views] >= 21), KEEPFILTERS('public dim_session'[total_views] <= 30))
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 2'
+
+	measure 'CR (Views 31-100)' = CALCULATE([Conversion Rate], KEEPFILTERS('public dim_session'[total_views] >= 31), KEEPFILTERS('public dim_session'[total_views] <= 100))
+		formatString: "0.00%"
+		displayFolder: 'Graph Page 2'
 
 	partition 'public dim_session' = m
 		mode: import
@@ -64,4 +156,3 @@ table 'public dim_session'
 				    public_dim_session
 
 	annotation PBI_ResultType = Table
-
