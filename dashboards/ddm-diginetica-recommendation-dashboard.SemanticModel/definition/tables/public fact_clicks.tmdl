@@ -1,0 +1,59 @@
+table 'public fact_clicks'
+	lineageTag: 6206457e-fac8-4a49-a4ad-73fd326eac06
+
+	column click_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 23f4712b-3f78-4b61-8040-4a75e576feed
+		summarizeBy: sum
+		sourceColumn: click_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column query_id
+		dataType: int64
+		formatString: 0
+		lineageTag: a6b9d399-378d-4d0a-b0cc-45beb9c9a603
+		summarizeBy: none
+		sourceColumn: query_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 8c4fd73c-c2b3-45c7-a54c-2b35602ff2df
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column timeframe
+		dataType: int64
+		formatString: 0
+		lineageTag: 76c995d8-fb94-416a-9b6c-7e081ee0f0fc
+		summarizeBy: sum
+		sourceColumn: timeframe
+
+		annotation SummarizationSetBy = Automatic
+
+	column click_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 576d1f83-e60b-4ff1-9562-9d9002262556
+		summarizeBy: sum
+		sourceColumn: click_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_clicks' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_clicks = Source{[Schema="public",Item="fact_clicks"]}[Data]
+				in
+				    public_fact_clicks
+
+	annotation PBI_ResultType = Table
+

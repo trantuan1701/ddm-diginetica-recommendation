@@ -1,0 +1,27 @@
+model Model
+	culture: en-US
+	defaultPowerBIDataSourceVersion: powerBI_V3
+	sourceQueryCulture: en-US
+	dataAccessOptions
+		legacyRedirects
+		returnErrorValuesAsNull
+
+annotation __PBI_TimeIntelligenceEnabled = 1
+
+annotation PBI_QueryOrder = ["public dim_date","public dim_product","public dim_query","public dim_session","public dim_user","public fact_clicks","public fact_item_views","public fact_purchases"]
+
+annotation PBI_ProTooling = ["DevMode"]
+
+ref table 'public dim_date'
+ref table DateTableTemplate_bf6b93d5-ac0c-4382-a478-b21c8b072888
+ref table LocalDateTable_5845c942-c1e0-4932-99cb-0dae79fcfc3f
+ref table 'public dim_product'
+ref table 'public dim_query'
+ref table 'public dim_session'
+ref table 'public dim_user'
+ref table 'public fact_clicks'
+ref table 'public fact_item_views'
+ref table 'public fact_purchases'
+
+ref cultureInfo en-US
+

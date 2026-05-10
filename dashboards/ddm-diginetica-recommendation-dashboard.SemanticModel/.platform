@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "ddm-diginetica-recommendation-dashboard"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "518285e3-f204-4a76-b01d-d5e16b40b94f"
+  }
+}

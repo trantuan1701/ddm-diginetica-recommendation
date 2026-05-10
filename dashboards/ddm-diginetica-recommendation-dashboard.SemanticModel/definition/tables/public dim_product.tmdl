@@ -1,0 +1,73 @@
+table 'public dim_product'
+	lineageTag: 644475dc-3861-4b45-888f-2f0929a696f8
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 5c9ef627-8130-436a-8aed-8e516b9122dc
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column pricelog2
+		dataType: int64
+		formatString: 0
+		lineageTag: 9e1fefac-d282-4370-b0dd-640e7bdba421
+		summarizeBy: sum
+		sourceColumn: pricelog2
+
+		annotation SummarizationSetBy = Automatic
+
+	column price_bucket
+		dataType: string
+		lineageTag: 770b72d4-172a-4f4f-8b5d-6e79db5654ac
+		summarizeBy: none
+		sourceColumn: price_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column pricelog2_known
+		dataType: int64
+		formatString: 0
+		lineageTag: 99d6df70-61f3-4814-9ff8-abf68de25517
+		summarizeBy: sum
+		sourceColumn: pricelog2_known
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_price_known
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 041f70bc-1fcf-40c3-aae3-7a9a679ec7dd
+		summarizeBy: none
+		sourceColumn: is_price_known
+
+		annotation SummarizationSetBy = Automatic
+
+	column name_tokens
+		dataType: string
+		lineageTag: 480fa2e3-eb58-4558-abf9-af743ddd0dd5
+		summarizeBy: none
+		sourceColumn: name_tokens
+
+		annotation SummarizationSetBy = Automatic
+
+	column category_id
+		dataType: int64
+		formatString: 0
+		lineageTag: cb06439f-a17a-4bb9-b658-a108db829b69
+		summarizeBy: sum
+		sourceColumn: category_id
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_product' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_product = Source{[Schema="public",Item="dim_product"]}[Data]
+				in
+				    public_dim_product
+

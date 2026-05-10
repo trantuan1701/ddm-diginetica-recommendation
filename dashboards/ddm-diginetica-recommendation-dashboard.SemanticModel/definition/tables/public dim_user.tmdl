@@ -1,0 +1,40 @@
+table 'public dim_user'
+	lineageTag: f3feb39b-efb5-415a-8cf0-378503d7163f
+
+	column user_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 28241741-39ba-4854-8f53-c09af6c37ecd
+		summarizeBy: none
+		sourceColumn: user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_anonymous
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: a2d91be3-f2fb-4701-b45a-617806fc8a30
+		summarizeBy: none
+		sourceColumn: is_anonymous
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_type
+		dataType: string
+		lineageTag: bff08d0a-3150-48b1-9052-b4c854ebfb07
+		summarizeBy: none
+		sourceColumn: user_type
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_user' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_user = Source{[Schema="public",Item="dim_user"]}[Data]
+				in
+				    public_dim_user
+
+	annotation PBI_ResultType = Table
+

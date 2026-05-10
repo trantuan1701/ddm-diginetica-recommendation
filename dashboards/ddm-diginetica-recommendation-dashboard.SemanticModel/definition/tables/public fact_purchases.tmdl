@@ -1,0 +1,79 @@
+table 'public fact_purchases'
+	lineageTag: 30d58424-0c3f-4c61-afbb-61c00daa693b
+
+	column purchase_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 4b98c886-764e-4dfa-98e6-76dad83684dd
+		summarizeBy: sum
+		sourceColumn: purchase_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f16469c8-1773-4489-88f9-e81060f9e77f
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 3ac28d23-53ac-42b8-abe2-49f607a807a8
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 385e33e0-58c4-4984-be83-e5e9f9568230
+		summarizeBy: sum
+		sourceColumn: user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 73694f8c-c62a-40f2-af18-f676fd683cf9
+		summarizeBy: none
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 8306abf5-fbc0-406e-a3ec-1adb4f62ad93
+		summarizeBy: sum
+		sourceColumn: order_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column purchase_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 37f9711e-7bf1-4057-8761-666eba602ed8
+		summarizeBy: sum
+		sourceColumn: purchase_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_purchases' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_purchases = Source{[Schema="public",Item="fact_purchases"]}[Data]
+				in
+				    public_fact_purchases
+
+	annotation PBI_ResultType = Table
+
