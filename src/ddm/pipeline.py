@@ -9,15 +9,26 @@ from typing import Any
 
 import pandas as pd
 
+if __package__ == "src.ddm":
+    project_root = Path(__file__).resolve().parents[2]
+    src_path = project_root / "src"
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+
 from ddm.baselines import build_cooccurrence_baseline, build_popularity_baseline, validate_no_leakage
 from ddm.cleaning import (
-    add_item_popularity_features,
     build_clean_item_views,
     build_clean_purchases,
+)
+from ddm.transformations import (
+    build_dim_date,
     build_dim_item,
+    build_dim_query,
+    build_dim_user,
     build_session_summary,
 )
 from ddm.io import load_config, load_raw_tables, read_json, save_parquet
+# from ddm.kpis_calc import compute_all_kpis
 from ddm.kpis import compute_model_proxy_kpis, enrich_scored_examples_for_value
 from ddm.metrics import evaluate_topk_predictions, score_topk_predictions
 from ddm.registry import (
@@ -50,30 +61,89 @@ def _top_k(config: dict[str, Any]) -> int:
 
 
 def build_clean_layer(project_root: str | Path = ".") -> dict[str, Path]:
-    """Build cleaned session/item/purchase marts from raw Diginetica tables."""
+    """Build complete cleaned data layer and dimension/fact tables from raw Diginetica tables.
+    
+    Stages:
+    ① Data Cleaning (Raw → Cleaned, see cleaning.py):
+       - Standardize ID columns & parse dates
+       - Handle missing prices via quantile bucketing
+       - Deduplicate fact tables
+    
+    ② Data Transformation (Cleaned → Mart, see transformations.py):
+       - dim_date: Calendar dimension
+       - dim_user: User dimension from views/purchases
+       - dim_product: Product dimension with price & popularity features
+       - dim_query: Query dimension (if available)
+       - dim_session: Session aggregates for dashboard
+    
+    ③ KPI Computation (Mart → Analytics, see kpis_calc.py):
+       - kpi_by_date_usertype: Pre-aggregated KPIs by date × user_type (anonymous/logged_in)
+       - kpi_by_date_pricebucket: Pre-aggregated KPIs by date × price_bucket
+    """
     root = _project_root(project_root)
     config = load_config(root / "configs/project_config.yaml")
     required_tables = ["item_views", "purchases", "products", "product_categories"]
     tables = load_raw_tables(config, project_root=root, table_names=required_tables)
 
+    # Stage ①: Clean raw data
     clean_item_views = build_clean_item_views(tables["item_views"])
     clean_purchases = build_clean_purchases(tables["purchases"])
-    dim_item = build_dim_item(tables["products"], tables["product_categories"])
-    dim_item = add_item_popularity_features(dim_item, clean_item_views)
-    fact_session_summary = build_session_summary(clean_item_views, clean_purchases, dim_item)
+    
+    # Stage ②: Build dimensions & facts
+    # Dimension tables
+    dim_date = build_dim_date()
+    dim_user = build_dim_user(clean_item_views, clean_purchases)
+    dim_product = build_dim_item(
+        tables["products"],
+        tables["product_categories"],
+        clean_item_views=clean_item_views,  # For popularity features
+    )
+    dim_query = build_dim_query(tables.get("queries"))  # Optional if queries available
+    
+    # Fact table & aggregates
+    dim_session = build_session_summary(clean_item_views, clean_purchases, dim_product)
+    
+    # # Stage ③: Compute pre-aggregated KPIs
+    # kpis = compute_all_kpis(
+    #     clean_item_views,
+    #     clean_purchases,
+    #     dim_session,
+    #     dim_user,
+    #     dim_product,
+    # )
 
     processed_root = _resolve(root, config["outputs"]["processed_root"])
     mart_root = _resolve(root, config["outputs"]["mart_root"])
+    
     outputs = {
+        # Cleaned data (Stage ①)
         "clean_item_views": processed_root / "clean_item_views.parquet",
         "clean_purchases": processed_root / "clean_purchases.parquet",
-        "dim_item": mart_root / "dim_item.parquet",
-        "fact_session_summary": mart_root / "fact_session_summary.parquet",
+        # Dimension tables (Stage ②)
+        "dim_date": mart_root / "dim_date.parquet",
+        "dim_user": mart_root / "dim_user.parquet",
+        "dim_product": mart_root / "dim_product.parquet",
+        "dim_query": mart_root / "dim_query.parquet",
+        "dim_session": mart_root / "dim_session.parquet",
+        # # KPI tables (Stage ③)
+        # "kpi_by_date_usertype": mart_root / "kpi_by_date_usertype.parquet",
+        # "kpi_by_date_pricebucket": mart_root / "kpi_by_date_pricebucket.parquet",
     }
+    
+    # Save outputs
     save_parquet(clean_item_views, outputs["clean_item_views"])
     save_parquet(clean_purchases, outputs["clean_purchases"])
-    save_parquet(dim_item, outputs["dim_item"])
-    save_parquet(fact_session_summary, outputs["fact_session_summary"])
+    save_parquet(dim_date, outputs["dim_date"])
+    save_parquet(dim_user, outputs["dim_user"])
+    save_parquet(dim_product, outputs["dim_product"])
+    if not dim_query.empty:
+        save_parquet(dim_query, outputs["dim_query"])
+    save_parquet(dim_session, outputs["dim_session"])
+    
+    # # Save KPI tables
+    # save_parquet(kpis["kpi_by_date_usertype"], outputs["kpi_by_date_usertype"])
+    # save_parquet(kpis["kpi_by_date_pricebucket"], outputs["kpi_by_date_pricebucket"])
+    
     return outputs
 
 
