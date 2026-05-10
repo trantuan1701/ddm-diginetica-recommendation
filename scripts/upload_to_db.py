@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
 
 
-ANONYMOUS_USER_ID = 0
+ANONYMOUS_USER_ID = -1
 COPY_CHUNK_ROWS = 100_000
 FK_CONSTRAINT_PATTERN = re.compile(
     r",\s*\n\s*CONSTRAINT\s+(?P<name>\w+)\s*\n"
@@ -29,6 +29,7 @@ TABLE_LOAD_ORDER = [
     "fact_item_views",
     "fact_purchases",
     "fact_clicks",
+    "fact_kpi_summary",
 ]
 
 
@@ -369,16 +370,33 @@ def _build_dim_user(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
 
 def _build_dim_session(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
     sessions = frames["session_summary"].copy()
-    return pd.DataFrame(
+    views = frames["clean_item_views"]
+    purchases = frames["clean_purchases"]
+
+    # Calculate view_to_purchase_depth: count views in session up to first purchase
+    first_purchase = purchases.groupby("session_id")["timeframe"].min().reset_index()
+    first_purchase.columns = ["session_id", "first_purchase_timeframe"]
+
+    views_with_fp = views.merge(first_purchase, on="session_id", how="inner")
+    depths = (
+        views_with_fp[views_with_fp["timeframe"] <= views_with_fp["first_purchase_timeframe"]]
+        .groupby("session_id")
+        .size()
+        .reset_index(name="depth")
+    )
+
+    df = pd.DataFrame(
         {
             "session_id": _as_int(sessions["session_id"]),
             "user_id": _as_int(sessions["user_id"], fill_value=ANONYMOUS_USER_ID),
             "session_type": np.where(sessions["user_id"].isna(), "anonymous", "logged_in"),
             "has_purchase": sessions["has_purchase"].fillna(False).astype(bool),
             "total_views": _as_int(sessions["view_count"], fill_value=0),
-            "view_to_purchase_depth": pd.Series([pd.NA] * len(sessions), dtype="Int64"),
         }
-    ).drop_duplicates(subset=["session_id"])
+    )
+    df = df.merge(depths, on="session_id", how="left")
+    df["view_to_purchase_depth"] = df["depth"].astype("Int64")
+    return df.drop(columns=["depth"]).drop_duplicates(subset=["session_id"])
 
 
 def _build_dim_query(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -437,9 +455,103 @@ def _build_fact_clicks(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
     ).dropna(subset=["query_id", "item_id"])
 
 
+def _build_fact_kpi_summary(
+    upload_frames: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    views = upload_frames["fact_item_views"]
+    purchases = upload_frames["fact_purchases"]
+    sessions = upload_frames["dim_session"]
+    products = upload_frames["dim_product"]
+
+    # Daily Volume & Conversion base
+    daily_v = views.groupby("date_key").agg(total_views=("view_count", "sum")).reset_index()
+
+    daily_p = (
+        purchases.groupby("date_key")
+        .agg(total_purchases=("purchase_count", "sum"), total_orders=("order_number", "nunique"))
+        .reset_index()
+    )
+
+    # Daily Sessions & Conversion
+    # We need to map session date. fact_item_views is a good proxy for session date.
+    sess_date = views.groupby("session_id")["date_key"].min().reset_index()
+    sess_metrics = sessions.merge(sess_date, on="session_id", how="inner")
+
+    daily_s = (
+        sess_metrics.groupby("date_key")
+        .agg(
+            total_sessions=("session_id", "count"),
+            converted_sessions=("has_purchase", "sum"),
+            bounce_sessions=("total_views", lambda x: (x == 1).sum()),
+            avg_session_depth=("total_views", "mean"),
+            avg_view_to_purchase=("view_to_purchase_depth", "mean"),
+        )
+        .reset_index()
+    )
+
+    # Revenue Score Proxy
+    # total_revenue_score = SUM(pricelog2_known) of items purchased
+    purch_with_price = purchases.merge(
+        products[["item_id", "pricelog2_known"]], on="item_id", how="left"
+    )
+    daily_rev = (
+        purch_with_price.groupby("date_key").agg(total_revenue_score=("pricelog2_known", "sum")).reset_index()
+    )
+
+    # Inventory Coverage
+    daily_inv_v = views.groupby("date_key").agg(unique_items_viewed=("item_id", "nunique")).reset_index()
+    daily_inv_p = (
+        purchases.groupby("date_key").agg(unique_items_purchased=("item_id", "nunique")).reset_index()
+    )
+
+    # Merge all
+    kpi = daily_v.merge(daily_p, on="date_key", how="left")
+    kpi = kpi.merge(daily_s, on="date_key", how="left")
+    kpi = kpi.merge(daily_rev, on="date_key", how="left")
+    kpi = kpi.merge(daily_inv_v, on="date_key", how="left")
+    kpi = kpi.merge(daily_inv_p, on="date_key", how="left")
+
+    # Fill NaNs
+    cols_to_fill = [
+        "total_purchases",
+        "total_orders",
+        "total_sessions",
+        "converted_sessions",
+        "bounce_sessions",
+        "total_revenue_score",
+        "unique_items_viewed",
+        "unique_items_purchased",
+    ]
+    kpi[cols_to_fill] = kpi[cols_to_fill].fillna(0)
+
+    # Calculate Rates
+    kpi["conversion_rate"] = kpi["converted_sessions"] / kpi["total_sessions"].replace(0, np.nan)
+    kpi["revenue_per_session"] = kpi["total_revenue_score"] / kpi["total_sessions"].replace(0, np.nan)
+    kpi["bounce_rate"] = kpi["bounce_sessions"] / kpi["total_sessions"].replace(0, np.nan)
+    kpi["inventory_coverage"] = kpi["unique_items_purchased"] / kpi["unique_items_viewed"].replace(0, np.nan)
+
+    # Final cleanup
+    kpi = kpi.fillna(0)
+
+    # Cast integer columns explicitly to avoid .0 in CSV (which breaks Postgres integer COPY)
+    int_cols = [
+        "total_sessions",
+        "total_views",
+        "total_purchases",
+        "total_orders",
+        "converted_sessions",
+        "bounce_sessions",
+        "unique_items_viewed",
+        "unique_items_purchased",
+    ]
+    kpi[int_cols] = kpi[int_cols].astype("int64")
+
+    return kpi
+
+
 def _build_upload_frames() -> dict[str, pd.DataFrame]:
     frames = _load_source_frames()
-    return {
+    upload_frames = {
         "dim_date": _build_dim_date(frames),
         "dim_product": _build_dim_product(frames),
         "dim_user": _build_dim_user(frames),
@@ -449,6 +561,8 @@ def _build_upload_frames() -> dict[str, pd.DataFrame]:
         "fact_purchases": _build_fact_purchases(frames),
         "fact_clicks": _build_fact_clicks(frames),
     }
+    upload_frames["fact_kpi_summary"] = _build_fact_kpi_summary(upload_frames)
+    return upload_frames
 
 
 def upload_to_db(fresh=False):

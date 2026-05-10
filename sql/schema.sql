@@ -133,6 +133,37 @@ CREATE TABLE fact_clicks (
         REFERENCES dim_product(item_id)
 );
 
+CREATE TABLE fact_kpi_summary (
+    date_key                DATE    NOT NULL PRIMARY KEY,
+    -- Volume
+    total_sessions          INTEGER NOT NULL,
+    total_views             INTEGER NOT NULL,
+    total_purchases         INTEGER NOT NULL,
+    total_orders            INTEGER NOT NULL,
+    -- Revenue proxy
+    total_revenue_score     DOUBLE PRECISION NOT NULL,
+    -- Conversion
+    converted_sessions      INTEGER NOT NULL,
+    conversion_rate         DOUBLE PRECISION NOT NULL,
+    revenue_per_session     DOUBLE PRECISION NOT NULL,
+    -- Engagement
+    avg_session_depth       DOUBLE PRECISION NOT NULL,
+    avg_view_to_purchase    DOUBLE PRECISION,
+    bounce_sessions         INTEGER NOT NULL,
+    bounce_rate             DOUBLE PRECISION NOT NULL,
+    -- Inventory
+    unique_items_viewed     INTEGER NOT NULL,
+    unique_items_purchased  INTEGER NOT NULL,
+    inventory_coverage      DOUBLE PRECISION NOT NULL,
+
+    CONSTRAINT fk_fact_kpi_summary_dim_date
+        FOREIGN KEY (date_key)
+        REFERENCES dim_date(date_key)
+);
+
+COMMENT ON TABLE fact_kpi_summary IS 'Pre-aggregated KPI table. Grain = 1 ngày. Refresh sau ETL. Dùng cho Power BI KPI cards và trend charts.';
+
+
 CREATE INDEX ix_fact_item_views_date_key
     ON fact_item_views(date_key);
 
