@@ -1,0 +1,41 @@
+table 'public dim_query'
+	lineageTag: 7883ff25-a15a-4fde-bff1-6746aa475ebe
+
+	column query_id
+		dataType: int64
+		formatString: 0
+		lineageTag: deff18bf-f8a5-456e-9482-c9d4a556682e
+		summarizeBy: none
+		sourceColumn: query_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column total_clicks
+		dataType: int64
+		formatString: 0
+		lineageTag: 375fefc3-df23-4634-911f-3ee16e671e9a
+		summarizeBy: none
+		sourceColumn: total_clicks
+
+		annotation SummarizationSetBy = Automatic
+
+	column unique_items
+		dataType: int64
+		formatString: 0
+		lineageTag: bf2627de-b077-43c9-939a-97764a229a7b
+		summarizeBy: none
+		sourceColumn: unique_items
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_query' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_query = Source{[Schema="public",Item="dim_query"]}[Data]
+				in
+				    public_dim_query
+
+	annotation PBI_ResultType = Table
+

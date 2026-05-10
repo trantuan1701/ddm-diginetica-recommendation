@@ -72,12 +72,16 @@ def _top_popularity_items(
 ) -> list[dict[str, float | int | None]]:
     item_col = _first_existing(train_interactions.columns, ["item_id", "itemId", "pos_items"])
     raw_to_internal, internal_to_raw = _item_mappings(item_vocab)
+    ids_are_internal = item_col == "pos_items"
 
     counts = train_interactions[item_col].dropna().astype("int64").value_counts()
     rows: list[dict[str, float | int | None]] = []
     for item_id, count in counts.items():
         item = int(item_id)
-        if raw_to_internal:
+        if ids_are_internal:
+            internal_id = item
+            raw_id = internal_to_raw.get(internal_id, item) if internal_to_raw else item
+        elif raw_to_internal:
             raw_id = item
             internal_id = raw_to_internal.get(raw_id)
             if internal_id is None:
@@ -112,6 +116,8 @@ def build_popularity_baseline(
 
 
 def _session_sequences(train_interactions: pd.DataFrame) -> pd.Series:
+    if {"x", "alias_inputs", "pos_items"}.issubset(train_interactions.columns):
+        return train_interactions.apply(_graph_example_sequence, axis=1)
     session_col = _first_existing(train_interactions.columns, ["session_id", "sessionId"])
     item_col = _first_existing(train_interactions.columns, ["item_id", "itemId", "pos_items"])
     sort_cols = [session_col]
@@ -120,6 +126,16 @@ def _session_sequences(train_interactions: pd.DataFrame) -> pd.Series:
             sort_cols.append(candidate)
     ordered = train_interactions.sort_values(sort_cols)
     return ordered.groupby(session_col, sort=False)[item_col].apply(list)
+
+
+def _graph_example_sequence(row: pd.Series) -> list[int]:
+    """Return an internal-ID prefix + target sequence from a graph example row."""
+    x = list(row["x"])
+    alias_inputs = list(row["alias_inputs"])
+    sequence = [int(x[int(alias)]) for alias in alias_inputs]
+    if "pos_items" in row and pd.notna(row["pos_items"]):
+        sequence.append(int(row["pos_items"]))
+    return sequence
 
 
 def _last_internal_item(row: pd.Series) -> int | None:
@@ -148,13 +164,14 @@ def build_cooccurrence_baseline(
     popularity = _top_popularity_items(train_interactions, item_vocab=item_vocab, k=max(k, 100))
 
     transition_counts: dict[int, Counter[int]] = defaultdict(Counter)
+    ids_are_internal = "pos_items" in train_interactions.columns
     for sequence in _session_sequences(train_interactions):
         internal_sequence: list[int] = []
         for item in sequence:
             if pd.isna(item):
                 continue
             item_int = int(item)
-            internal = raw_to_internal.get(item_int, item_int) if raw_to_internal else item_int
+            internal = item_int if ids_are_internal else raw_to_internal.get(item_int, item_int)
             internal_sequence.append(int(internal))
         for current, nxt in zip(internal_sequence, internal_sequence[1:], strict=False):
             transition_counts[current][nxt] += 1

@@ -1,0 +1,74 @@
+table 'public dim_date'
+	lineageTag: 2c7241ba-ef82-46ee-8ace-2e1b5d975dc9
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: b3002e17-6905-459d-b83d-7ec9f129de07
+		summarizeBy: none
+		sourceColumn: date_key
+
+		variation Variation
+			isDefault
+			relationship: 0ef4ff6f-727b-4590-9270-27b554f58a17
+			defaultHierarchy: LocalDateTable_5845c942-c1e0-4932-99cb-0dae79fcfc3f.'Date Hierarchy'
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column year
+		dataType: int64
+		formatString: 0
+		lineageTag: 0e33720f-b30c-448d-854b-014b899334f3
+		summarizeBy: sum
+		sourceColumn: year
+
+		annotation SummarizationSetBy = Automatic
+
+	column month
+		dataType: int64
+		formatString: 0
+		lineageTag: 87f64d50-2147-400f-9301-00f7b5822ca4
+		summarizeBy: sum
+		sourceColumn: month
+
+		annotation SummarizationSetBy = Automatic
+
+	column month_name
+		dataType: string
+		lineageTag: 74a1069d-c3ca-4f4a-86da-2c066e0885fb
+		summarizeBy: none
+		sourceColumn: month_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column week
+		dataType: int64
+		formatString: 0
+		lineageTag: e43636eb-a1bf-4205-96a0-ac0473169e6d
+		summarizeBy: sum
+		sourceColumn: week
+
+		annotation SummarizationSetBy = Automatic
+
+	column day_of_week
+		dataType: int64
+		formatString: 0
+		lineageTag: 41aa96f7-8a4f-4149-a680-790c2ed6a137
+		summarizeBy: sum
+		sourceColumn: day_of_week
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_date' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_date = Source{[Schema="public",Item="dim_date"]}[Data]
+				in
+				    public_dim_date
+
+	annotation PBI_ResultType = Table
+

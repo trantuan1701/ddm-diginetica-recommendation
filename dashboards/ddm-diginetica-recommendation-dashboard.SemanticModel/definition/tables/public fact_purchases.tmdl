@@ -1,0 +1,129 @@
+table 'public fact_purchases'
+	lineageTag: 30d58424-0c3f-4c61-afbb-61c00daa693b
+
+	measure 'Total Orders' = DISTINCTCOUNT('public fact_purchases'[order_number])
+		formatString: #,0
+		displayFolder: 'KPI Page 1'
+		lineageTag: ec3d99bb-297d-408d-afa4-30ffc649b7d7
+
+	measure 'Total Revenue Proxy' = SUMX('public fact_purchases', VAR _price_log2 = RELATED('public dim_product'[pricelog2]) RETURN IF(ISBLANK(_price_log2), BLANK(), POWER(2.0, _price_log2) - 1.0))
+		formatString: $#,0
+		displayFolder: 'KPI Page 1'
+		lineageTag: a4734273-1547-4a72-a2bc-45dc9746c827
+
+	measure 'Revenue per Session Proxy' = DIVIDE([Total Revenue Proxy], 'public dim_session'[Total Sessions])
+		formatString: $#,0.00
+		displayFolder: 'KPI Page 1'
+		lineageTag: 3faf8fc1-e31e-4cd4-abb4-e4e9de465d70
+
+	measure 'Revenue Anonymous Sessions Proxy' = CALCULATE([Total Revenue Proxy], KEEPFILTERS('public dim_session'[session_type] = "anonymous"))
+		formatString: $#,0
+		displayFolder: 'Graph Page 1'
+		lineageTag: 54c47327-b404-4988-bf37-644a27f8b862
+
+	measure 'Revenue Identified Sessions Proxy' = [Total Revenue Proxy] - [Revenue Anonymous Sessions Proxy]
+		formatString: $#,0
+		displayFolder: 'Graph Page 1'
+		lineageTag: 3e8d57ab-598c-4c3f-99d9-fa75456c26e7
+
+	measure 'Percent Revenue Anonymous Sessions' = DIVIDE([Revenue Anonymous Sessions Proxy], [Total Revenue Proxy])
+		formatString: 0.00%
+		displayFolder: 'Graph Page 1'
+		lineageTag: 8777d521-4f5f-4658-a99a-11340550ec0b
+
+	measure 'Percent Revenue Identified Sessions' = DIVIDE([Revenue Identified Sessions Proxy], [Total Revenue Proxy])
+		formatString: 0.00%
+		displayFolder: 'Graph Page 1'
+		lineageTag: d16e35a9-6ef0-4648-a219-6b164f777ee0
+
+	measure 'AOV Anonymous Sessions Proxy' = DIVIDE([Revenue Anonymous Sessions Proxy], CALCULATE([Total Orders], KEEPFILTERS('public dim_session'[session_type] = "anonymous")))
+		formatString: $#,0.00
+		displayFolder: 'Graph Page 1'
+		lineageTag: 5c78d566-a40e-4d05-bd83-55a61be700f5
+
+	measure 'AOV Session Type Proxy' = DIVIDE([Total Revenue Proxy], [Total Orders])
+		formatString: $#,0.00
+		displayFolder: 'Graph Page 1'
+		lineageTag: 24d5cd19-43a7-40c3-b52d-f398e4b2d74d
+
+	measure 'AOV Identified Sessions Proxy' = DIVIDE([Revenue Identified Sessions Proxy], CALCULATE([Total Orders], KEEPFILTERS('public dim_session'[session_type] <> "anonymous")))
+		formatString: $#,0.00
+		displayFolder: 'Graph Page 1'
+		lineageTag: 2e97a450-18ea-4482-938e-e7d62a74a2a3
+
+	column purchase_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 4b98c886-764e-4dfa-98e6-76dad83684dd
+		summarizeBy: sum
+		sourceColumn: purchase_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: f16469c8-1773-4489-88f9-e81060f9e77f
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 3ac28d23-53ac-42b8-abe2-49f607a807a8
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 385e33e0-58c4-4984-be83-e5e9f9568230
+		summarizeBy: sum
+		sourceColumn: user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 73694f8c-c62a-40f2-af18-f676fd683cf9
+		summarizeBy: none
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column order_number
+		dataType: int64
+		formatString: 0
+		lineageTag: 8306abf5-fbc0-406e-a3ec-1adb4f62ad93
+		summarizeBy: sum
+		sourceColumn: order_number
+
+		annotation SummarizationSetBy = Automatic
+
+	column purchase_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 37f9711e-7bf1-4057-8761-666eba602ed8
+		summarizeBy: sum
+		sourceColumn: purchase_count
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_purchases' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_purchases = Source{[Schema="public",Item="fact_purchases"]}[Data]
+				in
+				    public_fact_purchases
+
+	annotation PBI_ResultType = Table
+

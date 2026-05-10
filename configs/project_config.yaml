@@ -1,6 +1,6 @@
 project:
   name: ddm-diginetica-recommendation
-  description: Course-facing DDM analytics layer over inherited registry recommendation outputs.
+  description: Course-facing DDM analytics layer over inherited recommender artifacts.
 
 paths:
   raw_interactions_path: data/raw/diginetica/train-item-views.csv
@@ -19,12 +19,14 @@ registry:
   model_name: recsys-serving
   model_alias: Production
   model_version: ""
-  artifact_path: ddm_export
-  fallback_artifact_path: registered_model
+  artifact_path: registered_model
 
 inheritance:
   top_k: 20
   inherited_root: data/inherited/recsys
+  test_examples_path: ""
+  train_examples_path: ""
+  item_vocab_path: ""
 
 outputs:
   processed_root: data/processed

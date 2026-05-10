@@ -1,0 +1,97 @@
+table 'public fact_item_views'
+	lineageTag: 1a11728b-bff9-464d-b1e0-910c42784657
+
+	column view_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 006bf021-5c47-45e6-ae06-a9059f3e8ae6
+		summarizeBy: sum
+		sourceColumn: view_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column date_key
+		dataType: dateTime
+		formatString: Long Date
+		lineageTag: fa739468-2907-47dc-ac83-3d396a939dec
+		summarizeBy: none
+		sourceColumn: date_key
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation UnderlyingDateTimeDataType = Date
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: d5bb30b4-6006-4bd7-83a2-706050a7382a
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column user_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 30030972-4f15-4188-bb57-5ae3da6989a1
+		summarizeBy: sum
+		sourceColumn: user_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 765b3d70-19d8-4478-8ec9-ee04bef5479a
+		summarizeBy: none
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column timeframe
+		dataType: int64
+		formatString: 0
+		lineageTag: fcba422f-7b6f-400f-96f0-228c69f0f6aa
+		summarizeBy: sum
+		sourceColumn: timeframe
+
+		annotation SummarizationSetBy = Automatic
+
+	column view_count
+		dataType: int64
+		formatString: 0
+		lineageTag: e5b1f196-b0ad-4161-aa80-efee19fca742
+		summarizeBy: sum
+		sourceColumn: view_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column view_order
+		dataType: int64
+		formatString: 0
+		lineageTag: d473846d-cbe0-4c0c-a20a-7abad99e6a31
+		summarizeBy: sum
+		sourceColumn: view_order
+
+		annotation SummarizationSetBy = Automatic
+
+	column is_last_view_in_session
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 437c4a52-0163-400f-b3f3-434c189cb702
+		summarizeBy: none
+		sourceColumn: is_last_view_in_session
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_item_views' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_item_views = Source{[Schema="public",Item="fact_item_views"]}[Data]
+				in
+				    public_fact_item_views
+
+	annotation PBI_ResultType = Table
+

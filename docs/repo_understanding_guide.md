@@ -4,7 +4,7 @@ Tài liệu này giúp bạn hiểu repository như một project owner: biết 
 
 Thông điệp chính cần nhớ:
 
-> Repo này là lớp analytics và reporting cho Data-Driven Marketing. Nhân vật chính là **SESSION**. SR-GNN được kế thừa từ `../recsys-group-project`, còn repo này không train và không deploy SR-GNN.
+> Repo này là lớp analytics và reporting cho Data-Driven Marketing. Nhân vật chính là **SESSION**. Mô hình recommender được kế thừa qua DagsHub + MLflow, còn test examples/vocabulary có thể kế thừa từ intermediate artifacts tương thích của `recsys-group-project`. Repo này không train và không deploy SR-GNN.
 
 ## 1. Big Picture
 
@@ -18,9 +18,10 @@ Nó làm các việc chính:
 - Kiểm tra dữ liệu, EDA, và trực quan hóa câu chuyện vì sao nên dùng session.
 - Làm sạch item views và purchases.
 - Tạo các bảng processed và mart.
-- Kế thừa SR-GNN context từ repo backbone `../recsys-group-project`.
+- Kế thừa trained recommender artifact `registered_model` từ DagsHub/MLflow registry.
+- Kế thừa intermediate artifacts tương thích như `test_examples.parquet` và `item_vocab.json` từ `recsys-group-project`.
+- Chạy final offline inference trong repo DDM để tạo top-20 prediction rows.
 - Tính offline recommendation metrics như `HR@20`, `MRR@20`, `Catalog Coverage@20`.
-- Tính baseline đơn giản: popularity và co-occurrence.
 - Tính marketing-safe proxy KPI như `CTR Proxy@20`, `Purchase Session Rate`, `Captured GMV Proxy@20`.
 - Chuẩn bị bảng parquet để load sang PostgreSQL và Power BI.
 - Hỗ trợ báo cáo cuối kỳ và dashboard.
@@ -32,28 +33,32 @@ Repo này **không** (Thiếu log thật, chỉ đánh giá dựa trên train-te
 - Train SR-GNN.
 - Deploy SR-GNN.
 - Tạo lại train/test split.
-- Làm serving API, Kubernetes, MLflow, monitoring.
+- Chạy inference fallback nếu thiếu prediction export.
+- Làm serving API, Kubernetes, monitoring.
 - Tính real CTR vì không có impression logs.
 - Chứng minh causal conversion uplift.
 - Chứng minh ROAS.
 - Tính real revenue theo kế toán.
 
-### Quan hệ với `../recsys-group-project`
+### Quan hệ với `recsys-group-project`
 
 Bạn có thể hiểu hai repo như sau:
 
 ```text
-../recsys-group-project
-  -> train/chọn SR-GNN backbone
-  -> tạo item vocabulary, test examples, native metrics, predictions
+recsys-group-project
+  -> train/chọn/promote recommender
+  -> log registered_model vào DagsHub/MLflow registry
+  -> lưu processed/test examples/item vocabulary theo data version
 
 ddm-diginetica-recommendation
-  -> kế thừa artifact đó
+  -> download configured trained model artifact
+  -> inherit compatible intermediate context artifacts
+  -> chạy final offline inference cho test examples tương thích
   -> nối với dữ liệu marketing/session/value proxy
   -> tính metrics, KPI, mart, dashboard, report
 ```
 
-`../recsys-group-project` là nơi mô hình recommendation được train. Repo DDM này là nơi biến output của mô hình thành phân tích marketing an toàn, có bảng, có dashboard, có câu chuyện.
+`recsys-group-project` là nơi mô hình recommendation được train, chọn, promote và đóng gói artifact. Repo DDM này tiêu thụ trained model artifact đã cố định hoặc pinned, dùng intermediate artifacts tương thích để giữ đúng evaluation context, chạy inference cuối cho reporting, rồi biến output của mô hình thành phân tích marketing an toàn, có bảng, có dashboard, có câu chuyện.
 
 ### Vì sao SESSION là trung tâm
 
@@ -91,8 +96,8 @@ Chứa cấu hình trung tâm: [project_config.yaml](../configs/project_config.y
 File này định nghĩa:
 
 - Đường dẫn raw data.
-- Đường dẫn backbone repo: `../recsys-group-project`.
-- Cấu hình kế thừa SR-GNN: `data_version`, `model_profile`, `top_k`.
+- Cấu hình DagsHub/MLflow registry: tracking URI, repo owner/name, model name, alias/version, artifact path.
+- Cấu hình kế thừa artifact: `top_k`, local `inherited_root`, `context_repo_path`, và optional override cho `test_examples_path`/`item_vocab_path`.
 - Đường dẫn output processed và mart.
 - Safe metric framing, ví dụ `CTR Proxy@20 is Hit Rate@20...`.
 
@@ -139,20 +144,22 @@ Chứa bảng phân tích cuối cùng để dùng cho PostgreSQL, Power BI và 
 
 ### `data/inherited/`
 
-Chứa artifact kế thừa từ SR-GNN backbone:
+Chứa artifact kế thừa từ DagsHub/MLflow registry:
 
 ```text
-data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/
+data/inherited/recsys/recsys-serving_Production_top20/
 ```
 
-Hiện có:
+Bundle bắt buộc có:
 
+- `manifest.json`
+- `model_card.json` hoặc `model_card.md`
 - `test_examples.parquet`
 - `predictions.parquet`
 - `item_vocab.json`
 - `metrics.json`
 
-Không thấy `PREDICTIONS_EXPORT_TODO.md` trong repo hiện tại. Điều này nghĩa là prediction export đã có sẵn.
+Nếu thiếu `predictions.parquet`, pipeline fail rõ ràng. Repo này không tự chạy inference fallback.
 
 ### `notebooks/`
 
@@ -169,7 +176,7 @@ Code Python của pipeline:
 - `io.py`: đọc config, đọc raw/mart, lưu parquet.
 - `cleaning.py`: cleaning và tạo bảng session/item.
 - `metrics.py`: tính recommendation metrics.
-- `baselines.py`: tạo popularity và co-occurrence baselines.
+- `registry.py`: resolve/download the trained DagsHub + MLflow artifact and inherit compatible evaluation context artifacts.
 - `kpis.py`: tính marketing-safe proxy KPIs.
 - `pipeline.py`: runner chính cho Makefile và notebook.
 
@@ -195,7 +202,7 @@ Raw Diginetica tables
   -> EDA and cleaning
   -> data/processed/
   -> data/mart/dim_item + fact_session_summary
-  -> inherited SR-GNN test examples/predictions
+  -> inherited context test examples + DDM-generated predictions
   -> recommendation metrics
   -> marketing proxy KPIs
   -> final mart tables
@@ -500,13 +507,15 @@ Cleaning không:
 
 Cleaning chỉ tạo dữ liệu sạch và mart để phân tích offline.
 
-## 6. Inherited SR-GNN Context
+## 6. Inherited Recommender Context
 
 Folder:
 
 ```text
-data/inherited/recsys/v1_strict_filter_srgnn_fc_top20/
+data/inherited/recsys/recsys-serving_Production_top20/
 ```
+
+Folder này được tạo bởi `make inherit`. Nó kết hợp trained model artifact từ registry với intermediate context artifacts tương thích từ `recsys-group-project`. Đây là interface giữa repo DDM và recommender đã train; DDM không train lại hay re-split dữ liệu.
 
 ### `test_examples.parquet`
 
@@ -516,13 +525,11 @@ Grain:
 1 row per offline test example
 ```
 
-Hiện có 45,910 rows.
-
 Ý nghĩa:
 
 - Mỗi dòng là một tình huống offline next-item prediction.
 - Có prefix/session context và target item cần đo xem model có recommend đúng không.
-- Đây là test split kế thừa từ backbone, repo DDM không tạo lại split.
+- Đây là test split kế thừa từ registry export, repo DDM không tạo lại split.
 
 Các cột quan trọng:
 
@@ -545,15 +552,9 @@ Grain:
 1 row per recommended item per test example
 ```
 
-Hiện có 918,200 rows:
-
-```text
-45,910 examples * top 20 recommendations
-```
-
 Ý nghĩa:
 
-- Đây là top-20 SR-GNN prediction rows.
+- Đây là top-20 prediction rows được DDM tạo bằng inherited trained model.
 - Mỗi `example_id` có nhiều dòng, mỗi dòng là một rank recommendation.
 - Cần file này để tính target rank, catalog coverage, captured value proxy và các phân tích theo session/category/value.
 
@@ -565,15 +566,13 @@ Các cột:
 - `pred_item_id_internal`
 - `pred_item_id_raw`
 - `score`
-
-Lưu ý: bản inherited file không có `model_key`, nhưng pipeline sẽ thêm `model_key = srgnn_fc_v1_strict_filter_top20` khi tạo `fact_recommendations`.
+- `model_key`, mặc định là `registry.model_name`.
 
 ### `item_vocab.json`
 
 Ý nghĩa:
 
-- Mapping giữa raw item ID và internal item ID mà SR-GNN dùng.
-- Hiện `size = 23,072`.
+- Mapping giữa raw item ID và internal item ID mà recommender dùng.
 - Có `item2id` và `id2item`.
 
 Vì SR-GNN thường dùng internal item IDs, còn DDM/report dùng raw item IDs, file này là cầu nối giữa model output và item metadata.
@@ -591,9 +590,8 @@ Hiện có:
 
 Ý nghĩa:
 
-- Native aggregate metrics từ backbone.
-- Nếu chưa có prediction rows, repo vẫn có thể report aggregate HR/MRR kế thừa.
-- Nhưng để phân tích theo session, rank bucket, category, value proxy thì cần `predictions.parquet`.
+- Native aggregate metrics từ registry export.
+- File này là metadata/checkpoint phụ; marts vẫn cần prediction rows để phân tích theo session, rank bucket, category, value proxy.
 
 ### Vì sao `predictions.parquet` cần thiết
 
@@ -607,7 +605,7 @@ Hiện có:
 - Revenue-weighted HR.
 - Target category/popularity.
 
-Vì vậy, `predictions.parquet` là file cần thiết để biến SR-GNN từ một con số aggregate thành một câu chuyện DDM có drilldown.
+Vì vậy, `predictions.parquet` là file bắt buộc để biến model từ một con số aggregate thành một câu chuyện DDM có drilldown.
 
 ## 7. Metrics and KPIs
 
@@ -716,7 +714,7 @@ Computed in:
 
 Logic:
 
-- Lấy top items phổ biến từ train interactions.
+- Lấy top items phổ biến từ inherited train examples tương thích với model/data version.
 - Recommend cùng một danh sách top-20 cho mọi test example.
 
 Mục đích:
@@ -731,9 +729,14 @@ Computed in:
 
 Logic:
 
-- Từ train-side session sequences, đếm transition item A -> item B.
+- Từ inherited train examples/session sequences, đếm transition item A -> item B.
 - Với last item trong test prefix, recommend các item thường xuất hiện tiếp theo.
 - Nếu thiếu transition, fallback sang popularity.
+
+Boundary:
+
+- Đây là classic-method offline benchmark để so sánh model với cách làm đơn giản.
+- Không phải production model, không retrain SR-GNN, và không được claim causal uplift.
 
 Mục đích:
 
@@ -910,13 +913,15 @@ Grain:
 1 row per model_key
 ```
 
-Rows hiện tại: 3.
+Rows hiện tại: 3 khi train split tương thích có sẵn.
 
 Models:
 
-- `srgnn_fc_v1_strict_filter_top20`
+- `recsys-serving`
 - `popularity_top20`
 - `cooccurrence_top20`
+
+The internal trained artifact is SR-GNN FC on `v1_strict_filter`, but the reporting join key for the inherited model is the MLflow registry model name. The other two keys are DDM-computed classic offline benchmarks.
 
 Purpose:
 
@@ -1265,7 +1270,7 @@ Purpose:
 
 - Prepare inherited SR-GNN context.
 - Validate inherited schemas.
-- Compute model metrics, baselines, recommendation rows, and marketing-safe KPIs.
+- Compute model metrics, recommendation rows from final inference, and marketing-safe KPIs.
 
 Inputs:
 
@@ -1273,11 +1278,10 @@ Inputs:
 - `data/mart/dim_item.parquet`
 - `data/mart/fact_session_summary.parquet`
 - `data/processed/clean_purchases.parquet`
-- Backbone train interactions from `../recsys-group-project`
 
 Main actions:
 
-- Calls `inherit_recsys_context()`.
+- Calls `inherit_recsys_context()` when downloading is needed.
 - Checks `test_examples.parquet`.
 - Calls `compute_metrics_and_kpis()`.
 - Shows `fact_metrics`, `fact_marketing_kpis`, `fact_recommendations`, `fact_recommendation_eval`.
@@ -1295,7 +1299,7 @@ What to check:
 
 - SR-GNN predictions are available.
 - `fact_recommendations` has 20 rows per example per model.
-- `fact_metrics` contains SR-GNN, popularity, co-occurrence.
+- `fact_metrics` contains metrics from the inherited model's final inference rows.
 - KPI wording has warning text.
 
 ### `03_prepare_powerbi_tables.ipynb`
@@ -1328,7 +1332,7 @@ What to check:
 - All required mart tables exist.
 - Table row counts look expected.
 - Power BI notes include limitations.
-- PostgreSQL schema is aligned with current parquet columns before import.
+- PostgreSQL import ownership is handled separately; check schema alignment with current parquet columns before loading.
 
 ## 10. Source Code Modules
 
@@ -1394,23 +1398,26 @@ Connects to:
 - `fact_metrics`.
 - `fact_recommendation_eval`.
 
-### `baselines.py`
+### `registry.py`
 
 Problem it solves:
 
-- Create simple train-only baselines to compare against SR-GNN.
+- Resolve and download the configured MLflow registered model export.
+- Validate the inherited bundle before any metrics or marts are computed.
 
 Important functions:
 
-- `build_popularity_baseline()`
-- `build_cooccurrence_baseline()`
-- `validate_no_leakage()`
+- `tracking_uri_from_config()`
+- `bundle_directory()`
+- `resolve_registry_reference()`
+- `download_registry_bundle()`
+- `validate_inherited_bundle()`
 
 Connects to:
 
+- `make inherit`.
 - `pipeline.compute_metrics_and_kpis()`.
-- `fact_recommendations`.
-- `fact_metrics`.
+- Local `data/inherited/recsys/...` bundle.
 
 ### `kpis.py`
 
@@ -1443,7 +1450,7 @@ Problem it solves:
 Important functions:
 
 - `build_clean_layer()`: used by `make validate`.
-- `inherit_recsys_context()`: copies/normalizes inherited SR-GNN context.
+- `inherit_recsys_context()`: downloads the configured model artifact, inherits compatible intermediate context, and validates the local bundle.
 - `compute_metrics_and_kpis()`: used by `make metrics`.
 - `prepare_powerbi_marts()`: used by `make marts`.
 - `main()`: CLI entrypoint for Makefile.
@@ -1458,7 +1465,7 @@ Important behavior:
 
 - If `predictions.parquet` exists, SR-GNN is evaluated from prediction rows.
 - If not, native aggregate metrics may still be used, but detailed DDM slicing is limited.
-- Baselines are computed from train-side interactions only.
+- Final prediction rows are computed from the inherited trained model.
 
 ## 11. Makefile Workflow
 
@@ -1584,11 +1591,11 @@ Talking point:
 
 > Sessions are short but contain sequential item transitions. That makes next-item recommendation a reasonable offline task.
 
-### Page 3: SR-GNN vs Baselines
+### Page 3: Model vs Classic Benchmarks
 
 Goal:
 
-- Compare SR-GNN with popularity and co-occurrence baselines.
+- Compare the inherited registered model against popularity and co-occurrence classic benchmarks.
 
 Suggested visuals:
 
@@ -1600,7 +1607,7 @@ Suggested visuals:
 
 Talking point:
 
-> SR-GNN is inherited from the recommendation backbone. This repo evaluates it in a DDM-safe way and compares it with simple train-only baselines.
+> The recommender is inherited from the configured MLflow artifact, with compatible intermediate evaluation context inherited from `recsys-group-project`. This repo runs final offline inference and evaluates it in a DDM-safe way.
 
 ### Page 4: Marketing Proxy KPIs and Limitations
 
@@ -1679,13 +1686,13 @@ Bạn có thể nói như sau:
 
 > Project này là lớp Data-Driven Marketing analytics cho bài toán recommendation trên dữ liệu Diginetica. Điểm quan trọng là em không lấy user làm trung tâm, vì `userId` bị thiếu rất nhiều, khoảng 70% ở item views. Vì vậy, đơn vị phân tích chính là session.
 >
-> Repo này không train SR-GNN. SR-GNN được kế thừa từ repo backbone `../recsys-group-project`, nơi đã có model, test examples, item vocabulary và prediction rows. Repo DDM này lấy các artifact đó, nối với dữ liệu item, category, purchase và price proxy để tạo bảng phân tích.
+> Repo này không train SR-GNN. Recommender được kế thừa từ DagsHub/MLflow artifact `registered_model`, còn test examples và vocabulary có thể kế thừa từ intermediate artifacts tương thích trong `recsys-group-project`. Repo DDM này dùng các artifact đó để chạy final offline inference, tạo prediction rows, rồi nối với dữ liệu item, category, purchase và price proxy để tạo bảng phân tích.
 >
-> Pipeline bắt đầu từ raw Diginetica tables, làm sạch item views và purchases, tạo `dim_item` và `fact_session_summary`. Sau đó repo dùng SR-GNN predictions và test examples để tính HR@20, MRR@20, Catalog Coverage@20, rồi so với popularity và co-occurrence baselines.
+> Pipeline bắt đầu từ raw Diginetica tables, làm sạch item views và purchases, tạo `dim_item` và `fact_session_summary`. Sau đó repo dùng prediction rows và test examples từ inherited artifacts để tính HR@20, MRR@20, Catalog Coverage@20. Repo cũng tính popularity và co-occurrence baselines từ train split tương thích để so sánh model với classic methods.
 >
 > Về marketing, repo chỉ dùng proxy KPIs an toàn. `CTR Proxy@20` thực chất là HR@20, tức offline next-click capture, không phải CTR thật. `Captured GMV Proxy` và `Revenue-weighted HR` dùng `price_proxy` từ `pricelog2`, không phải doanh thu thật. Vì không có impression logs hay A/B test, project không claim conversion uplift, ROAS hay causal revenue.
 >
-> Output cuối cùng là các mart tables để load vào PostgreSQL và Power BI, giúp trình bày câu chuyện: session là trung tâm, SR-GNN bắt next-click tốt hơn baseline trong offline evaluation, và các KPI marketing chỉ là proxy có giới hạn rõ ràng.
+> Output cuối cùng là các mart tables để load vào PostgreSQL và Power BI, giúp trình bày câu chuyện: session là trung tâm, SR-GNN bắt next-click trong offline evaluation, và các KPI marketing chỉ là proxy có giới hạn rõ ràng.
 
 ## 15. Next Steps Checklist
 
@@ -1697,14 +1704,8 @@ Bạn có thể nói như sau:
 
 ### PostgreSQL
 
-- Đối chiếu `sql/schema.sql` với schema parquet hiện tại.
-- Bổ sung các cột mới trong SQL nếu cần trước khi import:
-  - `session_length_bucket`
-  - `item_view_count`
-  - `item_popularity_bucket`
-  - `target_primary_category_id`
-  - `target_item_view_count`
-  - `target_item_popularity_bucket`
+- PostgreSQL schema/import work is a separate handoff from this pipeline refactor.
+- Collaborator phụ trách SQL nên đối chiếu `sql/schema.sql` với schema parquet hiện tại trước khi import.
 - Load các mart parquet vào PostgreSQL.
 - Kiểm tra row counts sau khi load.
 
@@ -1719,7 +1720,7 @@ Bạn có thể nói như sau:
 
 - Page 1: Executive overview.
 - Page 2: Session behavior.
-- Page 3: SR-GNN vs baselines.
+- Page 3: SR-GNN offline inference metrics.
 - Page 4: Marketing proxy KPIs and limitations.
 
 ### PDF report
@@ -1742,7 +1743,6 @@ Allowed:
 - value proxy
 - offline next-click capture
 - offline recommendation evaluation
-- relative delta vs baseline
 
 Not allowed:
 
@@ -1760,4 +1760,3 @@ Not allowed:
 - Nếu chuẩn bị Power BI: chạy `make marts`.
 - Nếu chỉ cần hiểu dữ liệu và thuyết trình: đọc README, notebook 01, `fact_metrics`, `fact_marketing_kpis`, và tài liệu này.
 - Nếu có lỗi schema khi load PostgreSQL: kiểm tra khác biệt giữa `sql/schema.sql` và parquet schemas trong `data/mart/`.
-

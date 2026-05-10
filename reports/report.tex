@@ -1,0 +1,234 @@
+% !TEX program = pdflatex
+\documentclass[conference]{IEEEtran}
+
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{hyperref}
+\usepackage{cite}
+\usepackage{pifont}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{array}
+\usepackage{subfig}
+\usepackage{dblfloatfix}
+\usepackage{float}
+\usepackage[table]{xcolor} 
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{mdframed}
+\usepackage{tikz}
+\usepackage{forest}
+\usepackage{xcolor}
+\definecolor{linkgreen}{RGB}{46, 125, 50}
+\usepackage{hyperref}
+
+\title{
+A Data-Driven Approach to Session-Based Recommendation using Graph-based Modeling.
+\thanks{This work was conducted as part of the DDM -- Data-Driven Marketing course}
+}
+
+\author{
+\IEEEauthorblockN{
+Group 3: Doan Quoc Bao, Dang Ngoc Hoa, Ly Thanh Long, Duong Thi Huyen Trang, Tran Anh Tuan
+} 
+\IEEEauthorblockA{
+DSEB-MFE, NEU \\
+Course: DDM -- Data-Driven Marketing 
+}
+}
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Not yet!
+\end{abstract}
+
+\begin{IEEEkeywords}
+Session-based Recommendation, Machine Learning, Marketing Analytics, Graph Neural Networks (GNN), User Intent Prediction
+\end{IEEEkeywords}
+
+%--------------------------------------------------
+\section{Introduction}
+
+In the current E-commerce landscape, the industry is moving toward a cookieless era, where user information is no longer readily available or easy to collect. This creates a major challenge for data-driven marketing, especially for online retail platforms. In practice, requiring users to register, log in, or provide detailed personal information before browsing or purchasing may reduce user experience and create additional friction in the customer journey. As a result, many valuable interactions occur without persistent user identity.
+
+This context directly affects the design of recommender systems. Traditional recommendation approaches often rely on long-term user profiles, historical user-item interaction matrices, or rich contextual information to personalize product suggestions. However, when users remain anonymous, these methods become less effective because the system cannot fully observe who the customer is or what they have done in the past. Therefore, the key challenge is how to build a recommendation system that can still provide relevant product suggestions when user-level information is limited.
+
+Nevertheless, anonymous traffic should not be treated as unusable data. Even when user identity is missing, the sequence of actions within a shopping session can still reveal meaningful short-term intent. The products that a customer views, clicks, or compares during a visit provide important signals about their current interests. This suggests that the recommendation problem should shift from relying mainly on long-term user identity to exploiting the behavioral patterns observed within each session.
+
+In this study, we examine this challenge using the Diginetica E-commerce dataset. The dataset provides a suitable setting for studying recommendation in anonymous and session-based environments, where user profiles are limited but product interaction sequences are available. Our focus is to investigate how session-level behavior can be transformed into useful signals for recommending relevant products during the customer journey.
+
+By positioning recommender systems at the center of the analysis, this study aims to show how data-driven marketing can move beyond descriptive customer analysis and support actionable product recommendation. The broader objective is to help E-commerce platforms better utilize anonymous sessions, improve the relevance of recommended products, and increase opportunities for user engagement and conversion.
+
+%--------------------------------------------------
+\section{Data Description and Preprocessing}
+\subsection{Data description}
+This study uses the Diginetica dataset, which was originally released as part of the CIKM Cup 2016 challenge on e-commerce search personalization. The dataset captures real user browsing and purchasing behavior on an e-commerce platform over a period of approximately six months, from January 1, 2016 to June 17, 2016. It records how users interact with products — what they view, what they click on, and what they ultimately buy — making it a well-suited benchmark for session-based recommendation tasks.
+
+The dataset consists of six files, each capturing a different aspect of the platform's data: item views, purchases, search queries, search clicks, product metadata, and product category mappings.
+
+It is worth nothing that search queries and search clicks are treated as optional files in this project, as the recommendation task is built directly on users' in-session item viewing behavior, and search context is not required as part of the input.
+
+\subsection{Data preprocessing}
+Before feeding the data into any model, the raw Diginetica files go through a consistent cleaning pipeline. The process can be summarized in four steps.
+
+The first thing the pipeline does is bring everything into a consistent shape. Column names are rewritten from camelCase and dot notation into snake\_case, so the codebase speaks one language throughout. Identifier and timestamp columns are cast to nullable integers (\texttt{Int64}) --- a necessary choice because a large portion of users are anonymous and carry no \texttt{user\_id}, and a regular integer type has no way to represent that absence. The raw event date string is parsed into a proper datetime, and \texttt{pricelog2} is cast to a nullable float.
+
+With the basics in order, the pipeline builds a clean item reference table by joining product and category information into a single, one-row-per-item view. Because prices are stored on a log base-2 scale, a \texttt{price\_proxy} column is added using the formula $2^{\texttt{pricelog2}} - 1$, giving a number closer to what the original price actually looked like. Category information is rolled up per item into a primary category, a category count, and a full list of category IDs. Each item also gets a view count pulled from the training data and is placed into one of six popularity buckets --- \texttt{unviewed}, \texttt{1}, \texttt{2--5}, \texttt{6--20}, \texttt{21--100}, and \texttt{101+} --- making it easy to reason about how well-known a product is.
+
+The behavioral tables --- item views and purchases --- are then cleaned using the exact same steps. Any row missing a \texttt{session\_id}, \texttt{item\_id}, or \texttt{event\_date} is dropped, since there is no meaningful way to use it. Duplicate rows across those three fields are removed, keeping only the first occurrence. What remains is sorted chronologically within each session, so that the natural order of a user's actions is preserved.
+
+The final step pulls everything together into a session-level summary table, with one row per session. View events and purchase events are aggregated separately, capturing things like view count, number of unique items seen, purchase count, and estimated spend. The two sides are then merged with an outer join, so sessions that only contain views and sessions that only contain purchases are both kept. A \texttt{has\_purchase} flag marks whether any transaction took place, and each session is assigned a length bucket --- \texttt{0}, \texttt{1}, \texttt{2--3}, \texttt{3--5}, \texttt{6--10}, \texttt{11--20}, or \texttt{21+} --- for easier filtering and analysis later on.
+
+%------------------------%
+\section{Exploratory Data Analysis (EDA)}
+This section presents empirical evidence from the dataset to confirm the urgency of building session-based recommendation systems.
+\subsection{Anonymous Sessions as a Major Traffic Segment}
+Traffic analysis reveals a common phenomenon: the majority of users interact with the system without logging in or having a long-term purchase history. Statistically, anonymous sessions account for an overwhelming proportion (about 50\% - Show in \textbf{Figure \ref{fig:Ano}}) of total traffic. This creates a "blind spot" for traditional algorithms like Collaborative Filtering, which require User ID and long-term behavioral history to function effectively.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Pic1.png}
+    \caption{Anonymous and identified session analysis table}
+    \label{fig:Ano}
+\end{figure}
+\subsection{Revenue and Engagement Contribution of Anonymous Sessions}
+According to \textbf{Figure \ref{fig:Ano}}, anonymous sessions are a primary revenue driver, accounting for roughly 60\% of the total turnover. This evidence refutes the misconception that unidentified traffic is "spam." While these users lack formal profiles, their rich interaction patterns offer a vital opportunity for engagement. Ignoring this segment would lead to a substantial loss in potential revenue and ignore the vast predictive power hidden within the existing click-stream data.
+\subsection{Session Interaction and Conversion Potential}
+\textbf{Figure \ref{fig:Corr}} a positive correlation between session length and conversion rate
+\begin{itemize}
+    \item Sessions with long interaction sequences (multiple clicks) typically result in significantly higher CTRs and conversion rates compared to shorter sessions.
+    \item Each click during a session is a powerful signal reflecting the user's immediate intent.
+    \item Purchase data is often scarce and sparse, while click data is very rich, allowing us to build more accurate predictive models about subsequent behavior.
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\linewidth]{Pic2.png}
+    \caption{Correlation between session depth and conversion rate}
+    \label{fig:Corr}
+\end{figure}
+\subsection{Key Findings from EDA}
+From the above analysis, we derive the core insight: "We may not know who they are (User Identity), but we know exactly what they are doing (User Intent) through interactions within the session." Deeply exploring real-time behavior patterns is key to personalizing the experience without relying on past user profiles.
+%------------------------%
+\section{From Marketing Insights to Recommendation Problem}
+
+This section acts as a bridge, transforming business observations into a formal engineering task. 
+
+\subsection{Task Motivation}
+From a marketing perspective, the high proportion of anonymous sessions identified in the EDA poses a significant challenge to customer retention and conversion rate optimization. Traditional entity-based approaches (such as Collaborative Filtering) fail to leverage this segment due to the absence of long-term User Profiles. Consequently, the focus must shift from identifying \textit{"Who is buying?"} to predicting \textit{"What is the next action after this sequence of behaviors?"} 
+
+By focusing on the session level, we can capture the user's immediate intent. View data is selected as the primary input signal because it is significantly richer and denser than purchase data, providing enough information to model user interest in real-time even without historical data.
+
+\subsection{Problem Formulation}
+We formulate the task as a \textbf{session-based next-item recommendation} problem. Let $\mathcal{I} = \{i_1, i_2, \dots, i_m\}$ be the set of all unique items. Each session is represented as an ordered sequence of clicked products:
+\[
+S_t = [i_1, i_2, \dots, i_t]
+\]
+where $i_j \in \mathcal{I}$ denotes the product clicked at step $j$. Given the current sequence $S_t$, the goal of the recommender system is to predict the actual next product $y_t = i_{t+1}$ by outputting a ranked list of the top 20 candidates:
+\[
+\hat{Y}_t^{20} = [\hat{i}_1, \hat{i}_2, \dots, \hat{i}_{20}]
+\]
+
+To train the model, a single session $[i_1, i_2, i_3, i_4]$ is decomposed into multiple training instances to maximize data utility:
+\begin{itemize}
+    \item $[i_1] \rightarrow i_2$
+    \item $[i_1, i_2] \rightarrow i_3$
+    \item $[i_1, i_2, i_3] \rightarrow i_4$
+\end{itemize}
+
+\subsection{Success Measurement}
+The primary evaluation metric is \textbf{Hit Rate at 20 (HR@20)}, defined as:
+\[
+HR@20 = \frac{1}{N}\sum_{n=1}^{N} \mathbb{1}(y_n \in \hat{Y}^{20}_n)
+\]
+where $N$ is the total number of test instances. 
+
+\textbf{Strategic Link:} A high HR@20 value directly addresses the marketing objective of "customer stickiness." If the product the user intended to click is present in the top-20 recommendations, the system successfully maintains engagement, increases Click-Through Rate (CTR), and ultimately creates more opportunities for downstream conversion. Through this formulation, the marketing challenge of optimizing anonymous traffic is effectively transformed into a robust session-based recommendation problem.
+%---------------------------%
+
+
+
+\section{Modeling}
+We apply machine learning models to estimate the probability of churn:
+
+\[
+P(\text{churn} \mid X)
+\]
+
+\subsection{Feature Engineering}
+Key features include:
+\begin{itemize}
+    \item Recency, Frequency, Monetary (RFM)
+    \item Behavioral activity (clicks, sessions)
+    \item Temporal trends (activity slope)
+\end{itemize}
+
+\subsection{Evaluation Metrics}
+\begin{itemize}
+    \item Precision-Recall AUC (PR-AUC)
+    \item F2-score (for imbalanced classification)
+\end{itemize}
+
+%--------------------------------------------------
+\section{Experimental Design}
+To evaluate real-world impact, we design an A/B testing framework.
+
+\subsection{Hypothesis}
+\begin{itemize}
+    \item $H_0$: No difference between control and treatment
+    \item $H_1$: Treatment improves retention
+\end{itemize}
+
+\subsection{Metrics}
+\begin{itemize}
+    \item Primary Metric: Average Revenue Per User (ARPU)
+    \item Guardrail Metrics: Customer complaints, system latency
+\end{itemize}
+
+\subsection{Statistical Setup}
+\begin{itemize}
+    \item Significance level: $\alpha = 0.05$
+    \item Statistical power: $1 - \beta = 0.8$
+\end{itemize}
+
+%--------------------------------------------------
+\section{Results}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Metric & Control (A) & Treatment (B) & Lift \\
+\midrule
+Sample Size & 15000 & 15000 & - \\
+ARPU & 200 & 215 & +7.5\% \\
+p-value & - & - & $<0.01$ \\
+\bottomrule
+\end{tabular}
+\caption{A/B Testing Results}
+\end{table}
+
+The treatment group shows statistically significant improvement in ARPU, indicating positive impact of the retention strategy.
+
+%--------------------------------------------------
+\section{Conclusion}
+This study demonstrates that combining machine learning with A/B testing provides a robust framework for churn reduction. The results support deployment of the proposed system, subject to cost-benefit validation.
+
+%--------------------------------------------------
+%\section*{References}
+
+\begin{thebibliography}{00}
+
+\bibitem{b1} F. Provost and T. Fawcett, \textit{Data Science for Business}, O'Reilly Media, 2013.
+
+\bibitem{b2} K. P. Murphy, \textit{Machine Learning: A Probabilistic Perspective}, MIT Press, 2012.
+
+\bibitem{b3} R. Kohavi et al., \textit{Trustworthy Online Controlled Experiments: A Practical Guide to A/B Testing}, Cambridge University Press, 2020.
+
+\bibitem{b4} L. Breiman, "Random Forests," Machine Learning, vol. 45, no. 1, pp. 5--32, 2001.
+
+\bibitem{b5} T. Chen and C. Guestrin, "XGBoost: A Scalable Tree Boosting System," in Proc. KDD, 2016.
+
+\end{thebibliography}
+
+\end{document}

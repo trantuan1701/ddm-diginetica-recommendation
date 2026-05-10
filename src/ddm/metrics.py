@@ -2,7 +2,7 @@
 
 The helpers in this module operate on long top-k prediction tables with one row
 per recommended item. They intentionally avoid any model-training dependency so
-the DDM repo can evaluate inherited recommendation exports and simple baselines.
+the DDM repo can evaluate final inference rows from the inherited trained model.
 """
 
 from __future__ import annotations

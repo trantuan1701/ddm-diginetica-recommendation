@@ -1,0 +1,78 @@
+relationship 0ef4ff6f-727b-4590-9270-27b554f58a17
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'public dim_date'.date_key
+	toColumn: LocalDateTable_5845c942-c1e0-4932-99cb-0dae79fcfc3f.Date
+
+relationship 9d53094d-0d94-43f8-8f82-07f1c5c35be4
+	fromColumn: 'public dim_session'.user_id
+	toColumn: 'public dim_user'.user_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 1803a33d-6c73-4fce-952c-9a7333ecc336
+	fromColumn: 'public fact_clicks'.item_id
+	toColumn: 'public dim_product'.item_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 31053360-05c4-4962-9bb5-ec1f6b8f290e
+	fromColumn: 'public fact_clicks'.query_id
+	toColumn: 'public dim_query'.query_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship c96bfc70-a849-415a-8072-8fad58910222
+	fromColumn: 'public fact_item_views'.date_key
+	toColumn: 'public dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 9d4cddd7-7c6b-4cc8-a80e-e8b494b517f4
+	fromColumn: 'public fact_item_views'.item_id
+	toColumn: 'public dim_product'.item_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 9fdfa492-2a01-4607-abe5-cb8df2477333
+	fromColumn: 'public fact_item_views'.session_id
+	toColumn: 'public dim_session'.session_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship f41a54ac-45c6-414c-a2e0-a347c6522bf1
+	isActive: false
+	fromColumn: 'public fact_item_views'.user_id
+	toColumn: 'public dim_user'.user_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship f96e27dd-c793-44b8-bff2-f53db1f1e46c
+	fromColumn: 'public fact_purchases'.date_key
+	toColumn: 'public dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship dba03dcb-cd6b-43d6-8ac2-c5b40a586d8b
+	fromColumn: 'public fact_purchases'.item_id
+	toColumn: 'public dim_product'.item_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 1e7f40ca-3aec-44c8-be8b-6917ca56de8f
+	fromColumn: 'public fact_purchases'.session_id
+	toColumn: 'public dim_session'.session_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 72d33756-5ea6-4e73-b984-b4b9192d443f
+	isActive: false
+	fromColumn: 'public fact_purchases'.user_id
+	toColumn: 'public dim_user'.user_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship b267b4ee-7275-4f45-a092-77198287f77a
+	joinOnDateBehavior: datePartOnly
+	fromColumn: 'public fact_kpi_summary'.date_key
+	toColumn: LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb.Date
+
