@@ -13,6 +13,10 @@ def upload_to_db(fresh=False):
         print("Error: POSTGRES_URL not found in .env")
         return
 
+    # Fix for newer SQLAlchemy versions that require 'postgresql://' instead of 'postgres://'
+    if postgres_url.startswith("postgres://"):
+        postgres_url = postgres_url.replace("postgres://", "postgresql://", 1)
+
     # Create engine
     engine = create_engine(postgres_url)
     
