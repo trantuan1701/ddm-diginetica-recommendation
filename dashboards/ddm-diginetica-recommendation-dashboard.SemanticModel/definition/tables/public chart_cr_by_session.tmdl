@@ -1,0 +1,60 @@
+table 'public chart_cr_by_session'
+	lineageTag: 9f680566-032c-44a1-8cab-9d0706c938f1
+
+	column session_len_bin
+		dataType: string
+		lineageTag: 25da99b5-fb89-4969-8da9-4121aa818aa6
+		summarizeBy: none
+		sourceColumn: session_len_bin
+		sortByColumn: session_len_bin_sort
+
+		changedProperty = SortByColumn
+
+		annotation SummarizationSetBy = Automatic
+
+	column scenario
+		dataType: string
+		lineageTag: cc52ae45-98b5-48e6-b7bd-f6d05d4a1266
+		summarizeBy: none
+		sourceColumn: scenario
+
+		annotation SummarizationSetBy = Automatic
+
+	column cr_pct
+		dataType: double
+		lineageTag: 25c1a5bf-4418-49a9-acf3-41807d01a99a
+		summarizeBy: sum
+		sourceColumn: cr_pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column n_sessions
+		dataType: double
+		lineageTag: 30b5291d-cdea-4313-a694-a41ff770f74e
+		summarizeBy: sum
+		sourceColumn: n_sessions
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column session_len_bin_sort
+		dataType: int64
+		formatString: 0
+		lineageTag: 40f23a2d-0afd-47ef-9624-6f3dd7b0c820
+		summarizeBy: none
+		sourceColumn: session_len_bin_sort
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public chart_cr_by_session' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_chart_cr_by_session = Source{[Schema="public",Item="chart_cr_by_session"]}[Data]
+				in
+				    public_chart_cr_by_session
+

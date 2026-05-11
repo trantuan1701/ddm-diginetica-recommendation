@@ -1,13 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "chart_avg_actions",
   "position": {
     "x": 24,
     "y": 504,
-    "z": 0,
+    "z": 1000,
     "height": 192,
     "width": 608,
-    "tabOrder": 0
+    "tabOrder": 1000
   },
   "visual": {
     "visualType": "clusteredColumnChart",

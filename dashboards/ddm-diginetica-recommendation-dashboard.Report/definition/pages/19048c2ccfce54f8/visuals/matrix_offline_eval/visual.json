@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "matrix_offline_eval",
   "position": {
-    "x": 24,
-    "y": 100,
-    "width": 608,
-    "height": 180,
-    "z": 1300
+    "x": 24.540867810292635,
+    "y": 55.539858728557014,
+    "z": 1300,
+    "height": 210.53481331987894,
+    "width": 471.44298688193749
   },
   "visual": {
     "visualType": "tableEx",
@@ -25,7 +25,8 @@
                   "Property": "model_label"
                 }
               },
-              "queryRef": "public dim_model.model_label"
+              "queryRef": "public dim_model.model_label",
+              "nativeQueryRef": "model_label"
             },
             {
               "field": {
@@ -38,7 +39,8 @@
                   "Property": "HR@20"
                 }
               },
-              "queryRef": "SR-GNN Measures.HR@20"
+              "queryRef": "SR-GNN Measures.HR@20",
+              "nativeQueryRef": "HR@20"
             },
             {
               "field": {
@@ -51,7 +53,8 @@
                   "Property": "MRR@20"
                 }
               },
-              "queryRef": "SR-GNN Measures.MRR@20"
+              "queryRef": "SR-GNN Measures.MRR@20",
+              "nativeQueryRef": "MRR@20"
             },
             {
               "field": {
@@ -64,11 +67,72 @@
                   "Property": "Coverage@20"
                 }
               },
-              "queryRef": "SR-GNN Measures.Coverage@20"
+              "queryRef": "SR-GNN Measures.Coverage@20",
+              "nativeQueryRef": "Coverage@20"
             }
           ]
         }
       }
+    },
+    "objects": {
+      "values": [
+        {
+          "properties": {
+            "bold": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "15D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "columnHeaders": [
+        {
+          "properties": {
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "15D"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "grid": [
+        {
+          "properties": {
+            "outlineColor": {
+              "solid": {
+                "color": {
+                  "expr": {
+                    "ThemeDataColor": {
+                      "ColorId": 1,
+                      "Percent": 0
+                    }
+                  }
+                }
+              }
+            },
+            "outlineStyle": {
+              "expr": {
+                "Literal": {
+                  "Value": "1D"
+                }
+              }
+            }
+          }
+        }
+      ]
     },
     "visualContainerObjects": {
       "title": [
@@ -84,7 +148,55 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'TABLE I: Offline evaluation results on the test set'"
+                  "Value": "'Offline Evaluation Results on Test Set'"
+                }
+              }
+            },
+            "fontFamily": {
+              "expr": {
+                "Literal": {
+                  "Value": "'''Segoe UI'', wf_segoe-ui_normal, helvetica, arial, sans-serif'"
+                }
+              }
+            },
+            "alignment": {
+              "expr": {
+                "Literal": {
+                  "Value": "'center'"
+                }
+              }
+            },
+            "fontSize": {
+              "expr": {
+                "Literal": {
+                  "Value": "16D"
+                }
+              }
+            },
+            "bold": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "radius": {
+              "expr": {
+                "Literal": {
+                  "Value": "5D"
                 }
               }
             }

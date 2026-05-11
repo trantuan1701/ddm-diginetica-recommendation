@@ -299,9 +299,48 @@ CREATE TABLE model_metrics_summary (
         REFERENCES dim_model(model_key)
 );
 
+CREATE TABLE model_hr_by_session_bucket (
+    model_key                    VARCHAR(100) NOT NULL,
+    model_label                  VARCHAR(100) NOT NULL,
+    session_length_bucket        VARCHAR(20) NOT NULL,
+    session_length_bucket_sort   INTEGER NOT NULL,
+    hr_at_20                     DOUBLE PRECISION,
+    n_sessions                   INTEGER,
+    source                       VARCHAR(100),
+
+    CONSTRAINT pk_model_hr_by_session_bucket PRIMARY KEY (model_key, session_length_bucket),
+    CONSTRAINT fk_model_hr_by_session_bucket_dim_model
+        FOREIGN KEY (model_key)
+        REFERENCES dim_model(model_key)
+);
+
 CREATE TABLE data_quality_summary (
     metric_name   VARCHAR(100) NOT NULL PRIMARY KEY,
     metric_value  TEXT
+);
+
+CREATE TABLE chart_cr_by_session (
+    session_len_bin VARCHAR(20),
+    session_len_bin_sort INTEGER,
+    scenario VARCHAR(50),
+    cr_pct DOUBLE PRECISION,
+    n_sessions DOUBLE PRECISION
+);
+
+CREATE TABLE chart_rfm_segments (
+    segment VARCHAR(50),
+    scenario VARCHAR(50),
+    n_sessions INTEGER,
+    session_pct DOUBLE PRECISION,
+    sort_order INTEGER
+);
+
+CREATE TABLE chart_funnel (
+    step INTEGER,
+    stage VARCHAR(100),
+    scenario VARCHAR(50),
+    count INTEGER,
+    pct DOUBLE PRECISION
 );
 
 

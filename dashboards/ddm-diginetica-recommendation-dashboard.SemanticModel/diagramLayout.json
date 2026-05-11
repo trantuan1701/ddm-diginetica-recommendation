@@ -232,12 +232,64 @@
         {
           "location": {
             "x": 3349.4575708489592,
-            "y": 560.40808345515165
+            "y": 586.40808345515165
+          },
+          "nodeIndex": "public model_hr_by_session_bucket",
+          "nodeLineageTag": "abadb372-9d42-409e-bb9c-5ad919ce4876",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3349.4575708489592,
+            "y": 622.40808345515165
+          },
+          "nodeIndex": "public chart_cr_by_session",
+          "nodeLineageTag": "9f680566-032c-44a1-8cab-9d0706c938f1",
+          "size": {
+            "height": 176,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3633.4575708489592,
+            "y": 610.40808345515165
+          },
+          "nodeIndex": "public chart_funnel",
+          "nodeLineageTag": "3005583a-f6bd-41bd-b0c5-a01941745c2f",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3917.4575708489592,
+            "y": 610.40808345515165
+          },
+          "nodeIndex": "public chart_rfm_segments",
+          "nodeLineageTag": "fa63185b-58d2-46e8-90df-1754f25ea564",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3349.4575708489592,
+            "y": 610.40808345515165
           },
           "nodeIndex": "SR-GNN Measures",
           "nodeLineageTag": "a7769970-d72b-4f9e-a89c-4877f0d06983",
           "size": {
-            "height": 300,
+            "height": 200,
             "width": 234
           },
           "zIndex": 0

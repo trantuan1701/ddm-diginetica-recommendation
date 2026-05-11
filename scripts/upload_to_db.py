@@ -38,8 +38,18 @@ TABLE_LOAD_ORDER = [
     "fact_marketing_kpis",
     "session_summary",
     "model_metrics_summary",
+    "model_hr_by_session_bucket",
     "data_quality_summary",
+    "chart_cr_by_session",
+    "chart_rfm_segments",
+    "chart_funnel",
 ]
+
+RECREATE_ON_TARGETED_REFRESH = {
+    "chart_cr_by_session",
+    "chart_rfm_segments",
+    "chart_funnel",
+}
 
 
 def _postgres_url() -> str | None:
@@ -185,6 +195,25 @@ def _apply_schema(engine, schema_path: Path) -> None:
         with engine.begin() as conn:
             conn.execute(text(statement))
     print("Schema applied successfully.")
+
+
+def _create_table_statement(schema_path: Path, table_name: str) -> str:
+    table_and_check_statements, _, _ = _schema_statements(schema_path)
+    pattern = re.compile(
+        rf"^\s*CREATE\s+TABLE\s+{re.escape(table_name)}\s*\(",
+        flags=re.IGNORECASE,
+    )
+    for statement in table_and_check_statements:
+        if pattern.search(statement):
+            return statement
+    raise ValueError(f"CREATE TABLE statement not found for {table_name} in {schema_path}")
+
+
+def _recreate_target_table(engine, schema_path: Path, table_name: str) -> None:
+    create_statement = _create_table_statement(schema_path, table_name)
+    with engine.begin() as conn:
+        conn.execute(text(f"DROP TABLE IF EXISTS {_quote_ident(table_name)}"))
+        conn.execute(text(create_statement))
 
 
 def _apply_post_load_schema(engine, schema_path: Path) -> None:
@@ -337,6 +366,9 @@ def _load_source_frames() -> dict[str, pd.DataFrame]:
         "pbi_data_quality_summary": _read_optional_csv(HELPER_ROOT / "pbi_data_quality_summary.csv"),
         "pbi_offline_metrics": _read_optional_csv(HELPER_ROOT / "pbi_offline_metrics.csv"),
         "pbi_hr_by_bucket": _read_optional_csv(HELPER_ROOT / "pbi_hr_by_bucket.csv"),
+        "pbi_cr_by_session": _read_optional_csv(HELPER_ROOT / "pbi_cr_by_session.csv"),
+        "pbi_rfm_segments": _read_optional_csv(HELPER_ROOT / "pbi_rfm_segments.csv"),
+        "pbi_funnel": _read_optional_csv(HELPER_ROOT / "pbi_funnel.csv"),
     }
 
 
@@ -609,6 +641,10 @@ def _build_dim_model_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
     label_source = dim_model.get("model_family", dim_model["model_key"]).astype(str)
     dim_model["model_label"] = label_source.apply(_normalize_model_label)
 
+    # Normalize SR-GNN key
+    is_srgnn = dim_model["model_label"] == "SR-GNN"
+    dim_model.loc[is_srgnn, "model_key"] = "recsys-serving"
+
     res = pd.DataFrame(
         {
             "model_key": dim_model["model_key"],
@@ -626,9 +662,10 @@ def _build_dim_model_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
         baselines = []
         for model_name in ["Co-occurrence", "Popularity"]:
             if model_name in offline["model"].values:
+                m_key = "co_occurrence" if "co" in model_name.lower() else "popularity"
                 baselines.append(
                     {
-                        "model_key": model_name.lower().replace("-", "_"),
+                        "model_key": m_key,
                         "model_label": model_name,
                         "model_family": "baseline",
                         "model_role": "baseline",
@@ -687,44 +724,84 @@ def _build_fact_metrics_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
         )
 
     res_list = []
-    if not metrics.empty:
-        metric_name = metrics["metric_name"].astype(str).str.replace("Catalog Coverage@20", "Coverage@20", regex=False)
-        res_list.append(
-            pd.DataFrame(
-                {
-                    "model_key": metrics["model_key"].astype(str),
-                    "metric_name": metric_name,
-                    "metric_value": pd.to_numeric(metrics["metric_value"], errors="coerce"),
-                    "k": _as_int(metrics.get("k")),
-                    "metric_scope": metrics.get("metric_scope"),
-                    "source": metrics.get("source"),
-                    "warning_text": metrics.get("warning_text"),
-                }
-            )
-        )
-
-    # Add baseline metrics
+    
+    # If offline CSV exists, it is the source of truth for HR, MRR, Coverage for all three models.
     if not offline.empty:
         for _, row in offline.iterrows():
             model_name = row["model"]
-            if model_name in ["Co-occurrence", "Popularity"]:
-                m_key = model_name.lower().replace("-", "_")
-                for m_name, csv_col in [("HR@20", "hr20"), ("MRR@20", "mrr20"), ("Coverage@20", "coverage20")]:
-                    res_list.append(
-                        pd.DataFrame(
-                            [
-                                {
-                                    "model_key": m_key,
-                                    "metric_name": m_name,
-                                    "metric_value": row[csv_col],
-                                    "k": 20,
-                                    "metric_scope": "test_set",
-                                    "source": "offline_csv",
-                                    "warning_text": None,
-                                }
-                            ]
-                        )
+            label = _normalize_model_label(model_name)
+            
+            if label == "SR-GNN":
+                m_key = "recsys-serving"
+            elif label == "Co-occurrence":
+                m_key = "co_occurrence"
+            elif label == "Popularity":
+                m_key = "popularity"
+            else:
+                continue
+                
+            for m_name, csv_col in [("HR@20", "hr20"), ("MRR@20", "mrr20"), ("Coverage@20", "coverage20")]:
+                res_list.append(
+                    pd.DataFrame(
+                        [
+                            {
+                                "model_key": m_key,
+                                "metric_name": m_name,
+                                "metric_value": row[csv_col],
+                                "k": 20,
+                                "metric_scope": "test_set",
+                                "source": "offline_csv",
+                                "warning_text": None,
+                            }
+                        ]
                     )
+                )
+        
+        # We might still want other metrics from the mart if they don't overlap.
+        if not metrics.empty:
+            # Normalize keys in metrics too
+            metrics["model_label"] = metrics["model_key"].astype(str).apply(_normalize_model_label)
+            is_srgnn = metrics["model_label"] == "SR-GNN"
+            metrics.loc[is_srgnn, "model_key"] = "recsys-serving"
+            
+            # Filter out metrics already provided by CSV
+            standard_metrics = {"HR@20", "MRR@20", "Coverage@20", "Catalog Coverage@20"}
+            other_metrics = metrics[~metrics["metric_name"].isin(standard_metrics)]
+            if not other_metrics.empty:
+                res_list.append(
+                    pd.DataFrame(
+                        {
+                            "model_key": other_metrics["model_key"].astype(str),
+                            "metric_name": other_metrics["metric_name"].astype(str),
+                            "metric_value": pd.to_numeric(other_metrics["metric_value"], errors="coerce"),
+                            "k": _as_int(other_metrics.get("k")),
+                            "metric_scope": other_metrics.get("metric_scope"),
+                            "source": other_metrics.get("source"),
+                            "warning_text": other_metrics.get("warning_text"),
+                        }
+                    )
+                )
+    else:
+        # Fallback to mart only
+        if not metrics.empty:
+            metrics["model_label"] = metrics["model_key"].astype(str).apply(_normalize_model_label)
+            is_srgnn = metrics["model_label"] == "SR-GNN"
+            metrics.loc[is_srgnn, "model_key"] = "recsys-serving"
+            
+            metric_name = metrics["metric_name"].astype(str).str.replace("Catalog Coverage@20", "Coverage@20", regex=False)
+            res_list.append(
+                pd.DataFrame(
+                    {
+                        "model_key": metrics["model_key"].astype(str),
+                        "metric_name": metric_name,
+                        "metric_value": pd.to_numeric(metrics["metric_value"], errors="coerce"),
+                        "k": _as_int(metrics.get("k")),
+                        "metric_scope": metrics.get("metric_scope"),
+                        "source": metrics.get("source"),
+                        "warning_text": metrics.get("warning_text"),
+                    }
+                )
+            )
 
     return pd.concat(res_list, ignore_index=True) if res_list else pd.DataFrame()
 
@@ -825,43 +902,98 @@ def _build_session_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame
 
 
 def _build_model_metrics_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
-    summary = frames["pbi_model_metrics_summary"].copy()
     offline = frames["pbi_offline_metrics"].copy()
 
-    res_list = []
-    if not summary.empty:
-        res_list.append(
-            pd.DataFrame(
-                {
-                    "model_key": summary["model_key"].astype(str),
-                    "model_label": summary.get("model_label"),
-                    "hr_at_20": pd.to_numeric(summary.get("HR@20"), errors="coerce"),
-                    "mrr_at_20": pd.to_numeric(summary.get("MRR@20"), errors="coerce"),
-                    "coverage_at_20": pd.to_numeric(summary.get("Coverage@20"), errors="coerce"),
-                }
-            )
-        )
-
-    # Add baselines
     if not offline.empty:
+        res_list = []
         for _, row in offline.iterrows():
             model_name = row["model"]
-            if model_name in ["Co-occurrence", "Popularity"]:
-                res_list.append(
-                    pd.DataFrame(
-                        [
-                            {
-                                "model_key": model_name.lower().replace("-", "_"),
-                                "model_label": model_name,
-                                "hr_at_20": row["hr20"],
-                                "mrr_at_20": row["mrr20"],
-                                "coverage_at_20": row["coverage20"],
-                            }
-                        ]
-                    )
-                )
+            label = _normalize_model_label(model_name)
+            
+            if label == "SR-GNN":
+                m_key = "recsys-serving"
+            elif label == "Co-occurrence":
+                m_key = "co_occurrence"
+            elif label == "Popularity":
+                m_key = "popularity"
+            else:
+                continue
+                
+            res_list.append(
+                {
+                    "model_key": m_key,
+                    "model_label": label,
+                    "hr_at_20": row["hr20"],
+                    "mrr_at_20": row["mrr20"],
+                    "coverage_at_20": row["coverage20"],
+                }
+            )
+        return pd.DataFrame(res_list)
+    
+    # Fallback to summary if offline is empty
+    summary = frames["pbi_model_metrics_summary"].copy()
+    if not summary.empty:
+        summary["model_label"] = summary["model_key"].astype(str).apply(_normalize_model_label)
+        is_srgnn = summary["model_label"] == "SR-GNN"
+        summary.loc[is_srgnn, "model_key"] = "recsys-serving"
+        
+        return pd.DataFrame(
+            {
+                "model_key": summary["model_key"].astype(str),
+                "model_label": summary["model_label"],
+                "hr_at_20": pd.to_numeric(summary.get("HR@20"), errors="coerce"),
+                "mrr_at_20": pd.to_numeric(summary.get("MRR@20"), errors="coerce"),
+                "coverage_at_20": pd.to_numeric(summary.get("Coverage@20"), errors="coerce"),
+            }
+        )
+        
+    return pd.DataFrame(columns=["model_key", "model_label", "hr_at_20", "mrr_at_20", "coverage_at_20"])
 
-    return pd.concat(res_list, ignore_index=True) if res_list else pd.DataFrame()
+
+def _build_model_hr_by_session_bucket_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    df = frames["pbi_hr_by_bucket"].copy()
+    if df.empty:
+        return pd.DataFrame(
+            columns=[
+                "model_key",
+                "model_label",
+                "session_length_bucket",
+                "session_length_bucket_sort",
+                "hr_at_20",
+                "n_sessions",
+                "source",
+            ]
+        )
+
+    # Normalize bucket labels (en dash to ASCII dash)
+    df["session_length_bucket"] = df["len_bucket"].astype(str).str.replace("–", "-", regex=False)
+    
+    # Sort order
+    bucket_map = {"1-3": 1, "4-5": 2, "6-9": 3, "10-20": 4, "20+": 5}
+    df["session_length_bucket_sort"] = df["session_length_bucket"].map(bucket_map).fillna(99).astype(int)
+
+    # Map models
+    df["model_label"] = df["model"].apply(_normalize_model_label)
+    
+    def get_key(label):
+        if label == "SR-GNN": return "recsys-serving"
+        if label == "Co-occurrence": return "co_occurrence"
+        if label == "Popularity": return "popularity"
+        return "unknown"
+
+    df["model_key"] = df["model_label"].apply(get_key)
+    
+    return pd.DataFrame(
+        {
+            "model_key": df["model_key"],
+            "model_label": df["model_label"],
+            "session_length_bucket": df["session_length_bucket"],
+            "session_length_bucket_sort": df["session_length_bucket_sort"],
+            "hr_at_20": pd.to_numeric(df["hr20"], errors="coerce"),
+            "n_sessions": _as_int(df.get("n_sessions"), fill_value=0),
+            "source": "pbi_hr_by_bucket.csv",
+        }
+    )
 
 
 def _build_data_quality_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
@@ -876,6 +1008,43 @@ def _build_data_quality_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.Data
             "metric_value": metric_value.astype(str),
         }
     ).drop_duplicates(subset=["metric_name"])
+
+
+def _build_chart_cr_by_session_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    df = frames.get("pbi_cr_by_session")
+    if df is None:
+        return pd.DataFrame(columns=["session_len_bin", "session_len_bin_sort", "scenario", "cr_pct", "n_sessions"])
+    df = df.copy()
+    if "session_len_bin" in df.columns:
+        df["session_len_bin"] = df["session_len_bin"].astype(str).str.replace("–", "-", regex=False)
+    
+    # Sort mapping
+    def get_sort(val):
+        val = str(val)
+        if val == "11-15": return 11
+        if val == "16-20": return 12
+        if val == "21+": return 13
+        try:
+            return int(val)
+        except ValueError:
+            return 99
+            
+    df["session_len_bin_sort"] = df["session_len_bin"].apply(get_sort)
+    return df
+
+
+def _build_chart_rfm_segments_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    df = frames.get("pbi_rfm_segments")
+    if df is None:
+        return pd.DataFrame(columns=["segment", "scenario", "n_sessions", "session_pct", "sort_order"])
+    return df
+
+
+def _build_chart_funnel_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    df = frames.get("pbi_funnel")
+    if df is None:
+        return pd.DataFrame(columns=["step", "stage", "scenario", "count", "pct"])
+    return df
 
 
 def _build_upload_frames() -> dict[str, pd.DataFrame]:
@@ -898,16 +1067,33 @@ def _build_upload_frames() -> dict[str, pd.DataFrame]:
     upload_frames["fact_marketing_kpis"] = _build_fact_marketing_kpis(frames)
     upload_frames["session_summary"] = _build_session_summary_eval(frames)
     upload_frames["model_metrics_summary"] = _build_model_metrics_summary_eval(frames)
+    upload_frames["model_hr_by_session_bucket"] = _build_model_hr_by_session_bucket_eval(frames)
     upload_frames["data_quality_summary"] = _build_data_quality_summary_eval(frames)
+    upload_frames["chart_cr_by_session"] = _build_chart_cr_by_session_eval(frames)
+    upload_frames["chart_rfm_segments"] = _build_chart_rfm_segments_eval(frames)
+    upload_frames["chart_funnel"] = _build_chart_funnel_eval(frames)
     return upload_frames
 
 
-def upload_to_db(fresh=False):
+def _print_upload_summary(upload_frames: dict[str, pd.DataFrame]) -> None:
+    print("Upload frame row counts:")
+    for table_name in TABLE_LOAD_ORDER:
+        row_count = len(upload_frames[table_name])
+        print(f"  {table_name}: {row_count:,}")
+
+
+def upload_to_db(fresh=False, tables: list[str] | None = None):
     postgres_url = _postgres_url()
     if not postgres_url:
         return
 
+    requested_tables = tables or TABLE_LOAD_ORDER
+    unknown_tables = sorted(set(requested_tables) - set(TABLE_LOAD_ORDER))
+    if unknown_tables:
+        raise ValueError(f"Unknown upload table(s): {', '.join(unknown_tables)}")
+
     upload_frames = _build_upload_frames()
+    _print_upload_summary(upload_frames)
 
     engine = create_engine(
         postgres_url,
@@ -920,21 +1106,42 @@ def upload_to_db(fresh=False):
         },
     )
 
+    if fresh and tables:
+        raise ValueError("--fresh cannot be combined with --tables. Use one mode at a time.")
+
     if fresh:
         _wipe_current_schema(engine)
 
-    _apply_schema(engine, Path("sql/schema.sql"))
+    schema_path = Path("sql/schema.sql")
 
-    for table_name in TABLE_LOAD_ORDER:
+    if not tables:
+        _apply_schema(engine, schema_path)
+    else:
+        with engine.begin() as conn:
+            for table_name in requested_tables:
+                if table_name not in RECREATE_ON_TARGETED_REFRESH:
+                    conn.execute(text(f"TRUNCATE TABLE {_quote_ident(table_name)}"))
+        for table_name in requested_tables:
+            if table_name in RECREATE_ON_TARGETED_REFRESH:
+                _recreate_target_table(engine, schema_path, table_name)
+
+    for table_name in requested_tables:
         print(f"Uploading {table_name}...")
         _upload_df(engine, table_name, upload_frames[table_name])
 
-    _apply_post_load_schema(engine, Path("sql/schema.sql"))
+    if not tables:
+        _apply_post_load_schema(engine, schema_path)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Upload DDM Power BI star-schema tables to PostgreSQL.")
     parser.add_argument("--fresh", action="store_true", help="Drop all tables in the current schema before uploading.")
+    parser.add_argument(
+        "--tables",
+        nargs="+",
+        choices=TABLE_LOAD_ORDER,
+        help="Refresh only these existing PostgreSQL tables. Useful for helper chart tables.",
+    )
     args = parser.parse_args()
 
-    upload_to_db(fresh=args.fresh)
+    upload_to_db(fresh=args.fresh, tables=args.tables)

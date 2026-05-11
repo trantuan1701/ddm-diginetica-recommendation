@@ -1,13 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "kpi_avg_session_duration",
   "position": {
     "x": 24,
     "y": 144,
-    "z": 0,
+    "z": 5000,
     "height": 140,
     "width": 296,
-    "tabOrder": 0
+    "tabOrder": 5000
   },
   "visual": {
     "visualType": "card",
@@ -87,23 +87,5 @@
       ]
     },
     "drillFilterOtherVisuals": true
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "48a239d7d3dab79ac206",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "public dim_session"
-              }
-            },
-            "Property": "Avg Session Duration (min)"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
   }
 }

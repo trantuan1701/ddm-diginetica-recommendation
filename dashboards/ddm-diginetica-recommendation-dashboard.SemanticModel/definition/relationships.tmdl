@@ -122,3 +122,7 @@ relationship rel_session_summary_dim_session
 	fromColumn: 'public session_summary'.session_id
 	toColumn: 'public dim_session'.session_id
 
+relationship rel_model_hr_by_session_bucket_dim_model
+	fromColumn: 'public model_hr_by_session_bucket'.model_key
+	toColumn: 'public dim_model'.model_key
+

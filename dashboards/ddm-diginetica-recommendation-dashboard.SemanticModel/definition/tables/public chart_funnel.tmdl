@@ -1,0 +1,56 @@
+table 'public chart_funnel'
+	lineageTag: 3005583a-f6bd-41bd-b0c5-a01941745c2f
+
+	column step
+		dataType: int64
+		formatString: 0
+		lineageTag: 0a8114ac-f657-4662-bde8-6d55da6a8f10
+		summarizeBy: sum
+		sourceColumn: step
+
+		annotation SummarizationSetBy = Automatic
+
+	column stage
+		dataType: string
+		lineageTag: 9a1f3712-7d48-44ce-abf8-3eb2b81209a1
+		summarizeBy: none
+		sourceColumn: stage
+
+		annotation SummarizationSetBy = Automatic
+
+	column scenario
+		dataType: string
+		lineageTag: 67e40679-5b87-4394-a2a1-15400f9f49d7
+		summarizeBy: none
+		sourceColumn: scenario
+
+		annotation SummarizationSetBy = Automatic
+
+	column count
+		dataType: int64
+		formatString: 0
+		lineageTag: 232862a6-b0c6-4633-9c81-ba66832e6874
+		summarizeBy: sum
+		sourceColumn: count
+
+		annotation SummarizationSetBy = Automatic
+
+	column pct
+		dataType: double
+		lineageTag: fc09810e-d7bc-4bac-9412-4e4ef38c90bf
+		summarizeBy: sum
+		sourceColumn: pct
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'public chart_funnel' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_chart_funnel = Source{[Schema="public",Item="chart_funnel"]}[Data]
+				in
+				    public_chart_funnel
+

@@ -3,6 +3,34 @@
   "name": "19048c2ccfce54f8",
   "displayName": "Page 3 - Model Evaluation",
   "displayOption": "FitToPage",
-  "height": 720,
-  "width": 1280
+  "height": 900,
+  "width": 1280,
+  "objects": {
+    "outspacePane": [
+      {
+        "properties": {
+          "width": {
+            "expr": {
+              "Literal": {
+                "Value": "258L"
+              }
+            }
+          }
+        }
+      }
+    ],
+    "background": [
+      {
+        "properties": {
+          "transparency": {
+            "expr": {
+              "Literal": {
+                "Value": "59D"
+              }
+            }
+          }
+        }
+      }
+    ]
+  }
 }

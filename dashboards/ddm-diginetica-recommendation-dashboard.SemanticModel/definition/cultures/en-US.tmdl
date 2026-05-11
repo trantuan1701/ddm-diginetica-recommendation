@@ -1,2 +1,41 @@
 cultureInfo en-US
 
+	linguisticMetadata =
+			{
+			  "Version": "2.0.0",
+			  "Language": "en-US",
+			  "Entities": {
+			    "public_fact_recommendation_eval.session_length_bucket_fixed": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "public fact_recommendation_eval",
+			          "ConceptualProperty": "Session Length Bucket (Fixed)"
+			        }
+			      },
+			      "State": "Generated"
+			    },
+			    "public_model_hr_by_session_bucket.session_length_bucket": {
+			      "Definition": {
+			        "Binding": {
+			          "ConceptualEntity": "public model_hr_by_session_bucket",
+			          "ConceptualProperty": "session_length_bucket"
+			        }
+			      },
+			      "State": "Generated",
+			      "Terms": [
+			        {
+			          "Session Length Bucket": {
+			            "State": "Suggested",
+			            "Source": {
+			              "Type": "External",
+			              "Agent": "PowerBI.VisualColumnRename"
+			            },
+			            "Weight": 0.9
+			          }
+			        }
+			      ]
+			    }
+			  }
+			}
+		contentType: json
+

@@ -1,13 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "kpi_total_sessions",
   "position": {
     "x": 24,
     "y": 144,
-    "z": 0,
+    "z": 7000,
     "height": 140,
     "width": 296,
-    "tabOrder": 0
+    "tabOrder": 7000
   },
   "visual": {
     "visualType": "card",

@@ -2,11 +2,12 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "chart_funnel",
   "position": {
-    "x": 648,
-    "y": 296,
-    "z": 1410,
-    "height": 200,
-    "width": 608
+    "x": 24,
+    "y": 560,
+    "z": 0,
+    "height": 297,
+    "width": 490,
+    "tabOrder": 0
   },
   "visual": {
     "visualType": "clusteredColumnChart",
@@ -19,14 +20,33 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "public session_summary"
+                      "Entity": "public chart_funnel"
                     }
                   },
-                  "Property": "timeframe"
+                  "Property": "stage"
                 }
               },
-              "queryRef": "public session_summary.timeframe",
+              "queryRef": "public chart_funnel.stage",
+              "nativeQueryRef": "stage",
               "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public chart_funnel"
+                    }
+                  },
+                  "Property": "scenario"
+                }
+              },
+              "queryRef": "public chart_funnel.scenario",
+              "nativeQueryRef": "scenario"
             }
           ]
         },
@@ -34,42 +54,22 @@
           "projections": [
             {
               "field": {
-                "Measure": {
+                "Aggregation": {
                   "Expression": {
-                    "SourceRef": {
-                      "Entity": "SR-GNN Measures"
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "public chart_funnel"
+                        }
+                      },
+                      "Property": "pct"
                     }
                   },
-                  "Property": "Has View Rate"
+                  "Function": 0
                 }
               },
-              "queryRef": "SR-GNN Measures.Has View Rate"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "SR-GNN Measures"
-                    }
-                  },
-                  "Property": "Five Plus Views Rate"
-                }
-              },
-              "queryRef": "SR-GNN Measures.Five Plus Views Rate"
-            },
-            {
-              "field": {
-                "Measure": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "SR-GNN Measures"
-                    }
-                  },
-                  "Property": "Purchase Rate (Summary)"
-                }
-              },
-              "queryRef": "SR-GNN Measures.Purchase Rate (Summary)"
+              "queryRef": "Sum(public chart_funnel.pct)",
+              "nativeQueryRef": "Sum of pct"
             }
           ]
         }
@@ -95,7 +95,21 @@
             }
           }
         }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   }
 }

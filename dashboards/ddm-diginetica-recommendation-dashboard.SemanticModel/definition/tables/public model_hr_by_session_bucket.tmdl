@@ -1,0 +1,59 @@
+table 'public model_hr_by_session_bucket'
+	lineageTag: a7b1e2d3-c4f5-4678-90ab-cdef12345678
+
+	column model_key
+		dataType: string
+		lineageTag: b8c2d3e4-f5a6-4789-01bc-def23456789a
+		summarizeBy: none
+		sourceColumn: model_key
+
+	column model_label
+		dataType: string
+		lineageTag: c9d3e4f5-a6b7-4890-12cd-ef34567890ab
+		summarizeBy: none
+		sourceColumn: model_label
+
+	column session_length_bucket
+		dataType: string
+		lineageTag: d0e4f5a6-b7c8-4901-23de-f45678901abc
+		summarizeBy: none
+		sourceColumn: session_length_bucket
+		sortByColumn: session_length_bucket_sort
+
+	column session_length_bucket_sort
+		dataType: int64
+		formatString: 0
+		lineageTag: e1f5a6b7-c8d9-4012-34ef-5678901abcd2
+		summarizeBy: sum
+		sourceColumn: session_length_bucket_sort
+
+	column hr_at_20
+		dataType: double
+		lineageTag: f2a6b7c8-d9e0-4123-45f0-678901abcde3
+		summarizeBy: sum
+		sourceColumn: hr_at_20
+
+	column n_sessions
+		dataType: int64
+		formatString: 0
+		lineageTag: a3b7c8d9-e0f1-4234-5601-78901abcdef4
+		summarizeBy: sum
+		sourceColumn: n_sessions
+
+	column source
+		dataType: string
+		lineageTag: b4c8d9e0-f1a2-4345-6712-8901abcdef56
+		summarizeBy: none
+		sourceColumn: source
+
+	partition 'public model_hr_by_session_bucket' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_model_hr_by_session_bucket = Source{[Schema="public",Item="model_hr_by_session_bucket"]}[Data]
+				in
+				    public_model_hr_by_session_bucket
+
+	annotation PBI_ResultType = Table
+

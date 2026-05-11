@@ -3,10 +3,11 @@
   "name": "chart_conv_by_views",
   "position": {
     "x": 24,
-    "y": 296,
-    "z": 1400,
-    "height": 200,
-    "width": 608
+    "y": 278,
+    "z": 0,
+    "height": 266,
+    "width": 725,
+    "tabOrder": 0
   },
   "visual": {
     "visualType": "lineChart",
@@ -19,13 +20,14 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "public session_summary"
+                      "Entity": "public chart_cr_by_session"
                     }
                   },
-                  "Property": "Conversion View Bucket (Fixed)"
+                  "Property": "session_len_bin"
                 }
               },
-              "queryRef": "public session_summary.Conversion View Bucket (Fixed)",
+              "queryRef": "public chart_cr_by_session.session_len_bin",
+              "nativeQueryRef": "session_len_bin",
               "active": true
             }
           ]
@@ -37,13 +39,14 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "public session_summary"
+                      "Entity": "public chart_cr_by_session"
                     }
                   },
-                  "Property": "timeframe"
+                  "Property": "scenario"
                 }
               },
-              "queryRef": "public session_summary.timeframe"
+              "queryRef": "public chart_cr_by_session.scenario",
+              "nativeQueryRef": "scenario"
             }
           ]
         },
@@ -51,19 +54,55 @@
           "projections": [
             {
               "field": {
-                "Measure": {
+                "Aggregation": {
                   "Expression": {
-                    "SourceRef": {
-                      "Entity": "SR-GNN Measures"
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "public chart_cr_by_session"
+                        }
+                      },
+                      "Property": "cr_pct"
                     }
                   },
-                  "Property": "Conversion Rate (Summary)"
+                  "Function": 0
                 }
               },
-              "queryRef": "SR-GNN Measures.Conversion Rate (Summary)"
+              "queryRef": "Sum(public chart_cr_by_session.cr_pct)",
+              "nativeQueryRef": "Sum of cr_pct"
             }
           ]
         }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "public chart_cr_by_session"
+                  }
+                },
+                "Property": "session_len_bin"
+              }
+            },
+            "direction": "Ascending"
+          },
+          {
+            "field": {
+              "Column": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "public chart_cr_by_session"
+                  }
+                },
+                "Property": "scenario"
+              }
+            },
+            "direction": "Ascending"
+          }
+        ]
       }
     },
     "visualContainerObjects": {
@@ -86,7 +125,21 @@
             }
           }
         }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
       ]
-    }
+    },
+    "drillFilterOtherVisuals": true
   }
 }

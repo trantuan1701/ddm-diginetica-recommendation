@@ -2,14 +2,15 @@
   "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "chart_segmentation",
   "position": {
-    "x": 648,
-    "y": 512,
-    "z": 1420,
-    "height": 180,
-    "width": 608
+    "x": 531,
+    "y": 560,
+    "z": 0,
+    "height": 297,
+    "width": 738,
+    "tabOrder": 0
   },
   "visual": {
-    "visualType": "barChart",
+    "visualType": "clusteredBarChart",
     "query": {
       "queryState": {
         "Category": {
@@ -19,13 +20,14 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "public session_summary"
+                      "Entity": "public chart_rfm_segments"
                     }
                   },
                   "Property": "segment"
                 }
               },
-              "queryRef": "public session_summary.segment",
+              "queryRef": "public chart_rfm_segments.segment",
+              "nativeQueryRef": "segment",
               "active": true
             }
           ]
@@ -37,13 +39,14 @@
                 "Column": {
                   "Expression": {
                     "SourceRef": {
-                      "Entity": "public session_summary"
+                      "Entity": "public chart_rfm_segments"
                     }
                   },
-                  "Property": "timeframe"
+                  "Property": "scenario"
                 }
               },
-              "queryRef": "public session_summary.timeframe"
+              "queryRef": "public chart_rfm_segments.scenario",
+              "nativeQueryRef": "scenario"
             }
           ]
         },
@@ -51,16 +54,22 @@
           "projections": [
             {
               "field": {
-                "Measure": {
+                "Aggregation": {
                   "Expression": {
-                    "SourceRef": {
-                      "Entity": "SR-GNN Measures"
+                    "Column": {
+                      "Expression": {
+                        "SourceRef": {
+                          "Entity": "public chart_rfm_segments"
+                        }
+                      },
+                      "Property": "session_pct"
                     }
                   },
-                  "Property": "% Sessions (Segment)"
+                  "Function": 0
                 }
               },
-              "queryRef": "SR-GNN Measures.% Sessions (Segment)"
+              "queryRef": "Sum(public chart_rfm_segments.session_pct)",
+              "nativeQueryRef": "Sum of session_pct"
             }
           ]
         }
@@ -80,59 +89,27 @@
             "text": {
               "expr": {
                 "Literal": {
-                  "Value": "'Session segmentation by interaction frequency and purchase outcome'"
+                  "Value": "'Session Segmentation by Interaction Frequency and Purchase Outcome'"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "subTitle": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
                 }
               }
             }
           }
         }
       ]
-    }
-  },
-  "filterConfig": {
-    "filters": [
-      {
-        "name": "c6cff19a74235e7b2170",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "public session_summary"
-              }
-            },
-            "Property": "segment"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "169e8dd799430cb91945",
-        "field": {
-          "Column": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "public session_summary"
-              }
-            },
-            "Property": "timeframe"
-          }
-        },
-        "type": "Categorical"
-      },
-      {
-        "name": "7cf56b4b394e0f98b6c1",
-        "field": {
-          "Measure": {
-            "Expression": {
-              "SourceRef": {
-                "Entity": "SR-GNN Measures"
-              }
-            },
-            "Property": "% Sessions (Segment)"
-          }
-        },
-        "type": "Advanced"
-      }
-    ]
+    },
+    "drillFilterOtherVisuals": true
   }
 }

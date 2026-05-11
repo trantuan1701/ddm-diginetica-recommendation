@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.7.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
   "name": "title_srgnn",
   "position": {
-    "x": 24,
-    "y": 24,
-    "width": 760,
-    "height": 56,
-    "z": 1000
+    "x": 427.52774974772962,
+    "y": 0,
+    "z": 1000,
+    "height": 55.539858728557014,
+    "width": 410.73662966700306
   },
   "visual": {
     "visualType": "textbox",
@@ -18,10 +18,10 @@
               {
                 "textRuns": [
                   {
-                    "value": "SR-GNN Model Evaluation Dashboard",
+                    "value": "SR-GNN Model Evaluation ",
                     "textStyle": {
-                      "fontSize": "24pt",
-                      "fontWeight": "bold"
+                      "fontWeight": "bold",
+                      "fontSize": "24pt"
                     }
                   }
                 ]
