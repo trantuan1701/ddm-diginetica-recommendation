@@ -183,7 +183,7 @@ def build_dim_user(clean_item_views: pd.DataFrame, clean_purchases: pd.DataFrame
     """Build user dimension table from views and purchases.
     
     Includes:
-    - user_id (PK, nullable for anonymous users)
+    - user_id (PK, sentinel -1 for anonymous users)
     - is_anonymous: Flag for anonymous vs logged-in users
     - first_session_date: First interaction date
     - session_count: Total unique sessions
@@ -240,7 +240,7 @@ def build_dim_user(clean_item_views: pd.DataFrame, clean_purchases: pd.DataFrame
     dim_user["total_purchases"] = pd.to_numeric(dim_user["total_purchases"], errors="coerce").fillna(0).astype("Int64")
     dim_user["session_count"] = pd.to_numeric(dim_user["session_count"], errors="coerce").fillna(1).astype("Int64")
     dim_user["first_session_date"] = pd.to_datetime(dim_user["first_session_date"], errors="coerce")
-    dim_user["is_anonymous"] = False  # Default: assume logged-in unless explicitly marked
+    dim_user["is_anonymous"] = dim_user["user_id"].eq(-1)
     
     columns = ["user_id", "is_anonymous", "first_session_date", "session_count", "total_views", "total_purchases"]
     return dim_user[[c for c in columns if c in dim_user.columns]].sort_values("user_id").reset_index(drop=True)

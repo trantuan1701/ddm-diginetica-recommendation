@@ -60,6 +60,9 @@ def standardize_id_columns(df: pd.DataFrame) -> pd.DataFrame:
     """Rename common raw ID columns to snake_case and use nullable integers."""
     out = df.rename(columns={k: v for k, v in RENAME_COLUMNS.items() if k in df.columns}).copy()
 
+    if "user_id" in out.columns:
+        out["user_id"] = pd.to_numeric(out["user_id"], errors="coerce").fillna(-1)
+
     for column in INTEGER_COLUMNS:
         if column in out.columns:
             out[column] = pd.to_numeric(out[column], errors="coerce").astype("Int64")
