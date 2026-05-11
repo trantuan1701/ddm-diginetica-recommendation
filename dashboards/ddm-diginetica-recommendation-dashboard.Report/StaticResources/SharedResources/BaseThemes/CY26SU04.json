@@ -43,8 +43,8 @@
     "#0C3D37",
     "#0B511F"
   ],
-  "foreground": "#252423",
-  "foregroundNeutralSecondary": "#605E5C",
+  "foreground": "#666666",
+  "foregroundNeutralSecondary": "#999999",
   "foregroundNeutralTertiary": "#B3B0AD",
   "background": "#FFFFFF",
   "backgroundLight": "#F3F2F1",
@@ -62,23 +62,23 @@
   "textClasses": {
     "callout": {
       "fontSize": 24,
-      "fontFace": "DIN",
-      "color": "#252423"
+      "fontFace": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+      "color": "#333333"
     },
     "title": {
-      "fontSize": 12,
-      "fontFace": "DIN",
-      "color": "#252423"
+      "fontSize": 14,
+      "fontFace": "'Segoe UI Semibold', wf_segoe-ui_semibold, helvetica, arial, sans-serif",
+      "color": "#333333"
     },
     "header": {
       "fontSize": 12,
       "fontFace": "Segoe UI Semibold",
-      "color": "#252423"
+      "color": "#666666"
     },
     "label": {
       "fontSize": 10,
       "fontFace": "Segoe UI",
-      "color": "#252423"
+      "color": "#666666"
     }
   },
   "visualStyles": {
@@ -140,12 +140,28 @@
         "background": [
           {
             "show": true,
+            "color": {
+              "solid": {
+                "color": "#FFFFFF"
+              }
+            },
             "transparency": 0
           }
         ],
         "border": [
           {
+            "show": true,
+            "color": {
+              "solid": {
+                "color": "#E2E8F0"
+              }
+            },
             "width": 1
+          }
+        ],
+        "dropShadow": [
+          {
+            "show": false
           }
         ],
         "outspacePane": [
@@ -969,14 +985,19 @@
           {
             "color": {
               "solid": {
-                "color": "#FFFFFF"
+                "color": "#F0F4F8"
               }
             }
           }
         ],
         "background": [
           {
-            "transparency": 100
+            "color": {
+              "solid": {
+                "color": "#F0F4F8"
+              }
+            },
+            "transparency": 0
           }
         ]
       }

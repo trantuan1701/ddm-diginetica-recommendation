@@ -1,12 +1,13 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "title_srgnn",
   "position": {
-    "x": 427.52774974772962,
-    "y": 0,
-    "z": 1000,
-    "height": 55.539858728557014,
-    "width": 410.73662966700306
+    "x": 24,
+    "y": 24,
+    "z": 3000,
+    "height": 64,
+    "width": 600,
+    "tabOrder": 3000
   },
   "visual": {
     "visualType": "textbox",
@@ -18,7 +19,7 @@
               {
                 "textRuns": [
                   {
-                    "value": "SR-GNN Model Evaluation ",
+                    "value": "Page 3 - Model Evaluation ",
                     "textStyle": {
                       "fontWeight": "bold",
                       "fontSize": "24pt"
@@ -27,6 +28,47 @@
                 ]
               }
             ]
+          }
+        }
+      ]
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "background": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
+          }
+        }
+      ],
+      "border": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "false"
+                }
+              }
+            }
           }
         }
       ]

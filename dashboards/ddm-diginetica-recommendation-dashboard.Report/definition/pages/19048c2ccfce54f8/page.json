@@ -6,26 +6,24 @@
   "height": 900,
   "width": 1280,
   "objects": {
-    "outspacePane": [
-      {
-        "properties": {
-          "width": {
-            "expr": {
-              "Literal": {
-                "Value": "258L"
-              }
-            }
-          }
-        }
-      }
-    ],
     "background": [
       {
         "properties": {
+          "color": {
+            "solid": {
+              "color": {
+                "expr": {
+                  "Literal": {
+                    "Value": "'#F0F4F8'"
+                  }
+                }
+              }
+            }
+          },
           "transparency": {
             "expr": {
               "Literal": {
-                "Value": "59D"
+                "Value": "0D"
               }
             }
           }

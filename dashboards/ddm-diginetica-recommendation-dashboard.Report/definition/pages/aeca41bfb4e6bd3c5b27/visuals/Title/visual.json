@@ -1,12 +1,12 @@
 {
-  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.9.0/schema.json",
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
   "name": "7bc89b67045722a6",
   "position": {
     "x": 24,
     "y": 24,
     "z": 9000,
-    "height": 56,
-    "width": 760,
+    "height": 64,
+    "width": 600,
     "tabOrder": 9000
   },
   "visual": {
@@ -21,6 +21,7 @@
                   {
                     "value": "Page 1 - Session Overview",
                     "textStyle": {
+                      "fontWeight": "bold",
                       "fontSize": "24pt"
                     }
                   }
