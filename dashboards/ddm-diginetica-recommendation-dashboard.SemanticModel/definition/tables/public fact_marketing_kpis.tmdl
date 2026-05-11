@@ -1,0 +1,72 @@
+table 'public fact_marketing_kpis'
+	lineageTag: 11214ce1-904d-4750-8d03-4855bb0bfbc0
+
+	column kpi_id
+		dataType: int64
+		formatString: 0
+		lineageTag: f417f19a-4e15-4894-a7fa-a073ed4d77f9
+		summarizeBy: sum
+		sourceColumn: kpi_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_key
+		dataType: string
+		lineageTag: b996d2ec-6b0f-431c-bda4-4d6c7a9661a8
+		summarizeBy: none
+		sourceColumn: model_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column k
+		dataType: int64
+		formatString: 0
+		lineageTag: 46c1b9e6-a82b-4a10-96fc-cc9d1de0396f
+		summarizeBy: sum
+		sourceColumn: k
+
+		annotation SummarizationSetBy = Automatic
+
+	column kpi_name
+		dataType: string
+		lineageTag: f9c3e9a0-854d-4a02-b1de-8a753e63d4b8
+		summarizeBy: none
+		sourceColumn: kpi_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column kpi_value
+		dataType: double
+		lineageTag: 475240a1-d5ef-4bc1-b21e-f3f05ae954db
+		summarizeBy: sum
+		sourceColumn: kpi_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column kpi_scope
+		dataType: string
+		lineageTag: ef988e7f-c3ba-495b-a0d3-4c399f70b495
+		summarizeBy: none
+		sourceColumn: kpi_scope
+
+		annotation SummarizationSetBy = Automatic
+
+	column warning_text
+		dataType: string
+		lineageTag: 032bca67-88bd-4344-8002-b71b9124ec91
+		summarizeBy: none
+		sourceColumn: warning_text
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_marketing_kpis' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_marketing_kpis = Source{[Schema="public",Item="fact_marketing_kpis"]}[Data]
+				in
+				    public_fact_marketing_kpis
+

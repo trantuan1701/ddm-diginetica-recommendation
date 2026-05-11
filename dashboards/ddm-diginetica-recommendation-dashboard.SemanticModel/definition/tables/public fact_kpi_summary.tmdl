@@ -8,11 +8,6 @@ table 'public fact_kpi_summary'
 		summarizeBy: none
 		sourceColumn: date_key
 
-		variation Variation
-			isDefault
-			relationship: b267b4ee-7275-4f45-a092-77198287f77a
-			defaultHierarchy: LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb.'Date Hierarchy'
-
 		annotation SummarizationSetBy = Automatic
 
 		annotation UnderlyingDateTimeDataType = Date

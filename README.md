@@ -204,6 +204,17 @@ data/mart/fact_recommendations.parquet
 - `notebooks/02_compute_metrics.ipynb`: inherited model context, metrics, final inference rows, and KPIs
 - `notebooks/03_prepare_powerbi_tables.ipynb`: final mart tables and Power BI notes
 
+## SR-GNN Power BI Implementation Assets
+
+For the one-page **SR-GNN Model Evaluation Dashboard** implementation package
+(required files, model relationships, Power Query template, DAX measures,
+refresh workflow, and interpretation caveats), see:
+
+- `dashboards/powerbi_data/README.md`
+- `dashboards/powerbi_data/power_query_srgnn_dashboard.m`
+- `dashboards/powerbi_data/dax_srgnn_measures.dax`
+- `scripts/build_srgnn_dashboard_data.py`
+
 ## Safe Claim Boundary
 
 This project can discuss offline next-click capture and proxy value capture. It cannot claim real CTR, real conversion uplift, causal revenue uplift, ROAS, or actual business impact because recommendation impressions, exposure assignment, and online experiment data are not available.

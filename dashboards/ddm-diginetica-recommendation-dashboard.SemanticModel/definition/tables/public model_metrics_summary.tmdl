@@ -1,0 +1,58 @@
+table 'public model_metrics_summary'
+	lineageTag: 384d3409-3485-4bda-8c3e-01f61ea4ed18
+
+	column model_key
+		dataType: string
+		lineageTag: e933b416-953b-4b2d-9cc8-f1aaeb460eac
+		summarizeBy: none
+		sourceColumn: model_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_label
+		dataType: string
+		lineageTag: 8798d8d8-8234-4af0-bd4a-dc8756363650
+		summarizeBy: none
+		sourceColumn: model_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column hr_at_20
+		dataType: double
+		lineageTag: a9a42c0d-de45-49ed-b8b4-48a9c355016c
+		summarizeBy: sum
+		sourceColumn: hr_at_20
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column mrr_at_20
+		dataType: double
+		lineageTag: d4682c6b-8af5-4f3e-bd35-f55761eb1938
+		summarizeBy: sum
+		sourceColumn: mrr_at_20
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column coverage_at_20
+		dataType: double
+		lineageTag: ba4021c2-18b1-4a1b-b15d-6bacb6b76e5f
+		summarizeBy: sum
+		sourceColumn: coverage_at_20
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	partition 'public model_metrics_summary' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_model_metrics_summary = Source{[Schema="public",Item="model_metrics_summary"]}[Data]
+				in
+				    public_model_metrics_summary
+

@@ -1,0 +1,69 @@
+table 'public dim_model'
+	lineageTag: 4300aed8-617f-426e-8471-07ceaa8acb26
+
+	column model_key
+		dataType: string
+		lineageTag: 4d661178-adfd-44c2-94c6-de65f3325e70
+		summarizeBy: none
+		sourceColumn: model_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_label
+		dataType: string
+		lineageTag: ba18dd76-9c7a-44f0-a4c4-b488b95ef7ee
+		summarizeBy: none
+		sourceColumn: model_label
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_family
+		dataType: string
+		lineageTag: e5683cb5-6056-423e-a574-f9396148d3b0
+		summarizeBy: none
+		sourceColumn: model_family
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_role
+		dataType: string
+		lineageTag: 9589d17f-e32b-4d2c-9016-b656b79614a1
+		summarizeBy: none
+		sourceColumn: model_role
+
+		annotation SummarizationSetBy = Automatic
+
+	column top_k
+		dataType: int64
+		formatString: 0
+		lineageTag: 07ebe802-da80-4431-9111-16cc67198566
+		summarizeBy: sum
+		sourceColumn: top_k
+
+		annotation SummarizationSetBy = Automatic
+
+	column source_type
+		dataType: string
+		lineageTag: e041a7f8-8415-4a1c-b646-af97366ee59e
+		summarizeBy: none
+		sourceColumn: source_type
+
+		annotation SummarizationSetBy = Automatic
+
+	column warning_text
+		dataType: string
+		lineageTag: 06156e1b-fcec-44ba-8063-eacee3aa0819
+		summarizeBy: none
+		sourceColumn: warning_text
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_model' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_model = Source{[Schema="public",Item="dim_model"]}[Data]
+				in
+				    public_dim_model
+

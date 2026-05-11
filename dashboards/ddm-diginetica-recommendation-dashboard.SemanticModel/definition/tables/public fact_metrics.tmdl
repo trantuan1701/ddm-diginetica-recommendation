@@ -1,0 +1,80 @@
+table 'public fact_metrics'
+	lineageTag: 2a8286f8-5d64-49b3-a736-b00152b28f44
+
+	column metric_id
+		dataType: int64
+		formatString: 0
+		lineageTag: f9cd0ad8-7762-4d35-bf8c-97ee7523beb7
+		summarizeBy: sum
+		sourceColumn: metric_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_key
+		dataType: string
+		lineageTag: 6ed27598-d5c7-4b2d-bbee-f094e9c10c24
+		summarizeBy: none
+		sourceColumn: model_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column metric_name
+		dataType: string
+		lineageTag: d37935e7-06c1-418d-a8af-45f2d162df2b
+		summarizeBy: none
+		sourceColumn: metric_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column metric_value
+		dataType: double
+		lineageTag: e2805ed0-2dfa-404e-8485-06e520bb70c9
+		summarizeBy: sum
+		sourceColumn: metric_value
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column k
+		dataType: int64
+		formatString: 0
+		lineageTag: d765ca1e-dc57-41d3-9b6b-2726f6607eaa
+		summarizeBy: sum
+		sourceColumn: k
+
+		annotation SummarizationSetBy = Automatic
+
+	column metric_scope
+		dataType: string
+		lineageTag: a096e1eb-bc85-448f-9a4d-2c43f18b9371
+		summarizeBy: none
+		sourceColumn: metric_scope
+
+		annotation SummarizationSetBy = Automatic
+
+	column source
+		dataType: string
+		lineageTag: d68751ad-eec2-4c6e-ac22-b4fee7cbf41c
+		summarizeBy: none
+		sourceColumn: source
+
+		annotation SummarizationSetBy = Automatic
+
+	column warning_text
+		dataType: string
+		lineageTag: 23eaaac4-7c49-4dcd-b24a-3903957acab3
+		summarizeBy: none
+		sourceColumn: warning_text
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_metrics' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_metrics = Source{[Schema="public",Item="fact_metrics"]}[Data]
+				in
+				    public_fact_metrics
+

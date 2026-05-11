@@ -1,0 +1,96 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "matrix_offline_eval",
+  "position": {
+    "x": 24,
+    "y": 100,
+    "width": 608,
+    "height": 180,
+    "z": 1300
+  },
+  "visual": {
+    "visualType": "tableEx",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public dim_model"
+                    }
+                  },
+                  "Property": "model_label"
+                }
+              },
+              "queryRef": "public dim_model.model_label"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "HR@20"
+                }
+              },
+              "queryRef": "SR-GNN Measures.HR@20"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "MRR@20"
+                }
+              },
+              "queryRef": "SR-GNN Measures.MRR@20"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "Coverage@20"
+                }
+              },
+              "queryRef": "SR-GNN Measures.Coverage@20"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'TABLE I: Offline evaluation results on the test set'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

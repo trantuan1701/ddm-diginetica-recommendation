@@ -1,0 +1,11 @@
+metric_name,metric_value
+total_sessions,310324
+total_items,184047
+total_purchases,18025
+date_range_start,2016-01-01
+date_range_end,2016-06-01
+number_of_models,1
+missing_session_id_count,0
+missing_item_id_count,0
+missing_model_key_count,0
+missing_price_proxy_count,58042

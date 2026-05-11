@@ -8,7 +8,7 @@ model Model
 
 annotation __PBI_TimeIntelligenceEnabled = 1
 
-annotation PBI_QueryOrder = ["public dim_date","public dim_product","public dim_query","public dim_session","public dim_user","public fact_clicks","public fact_item_views","public fact_purchases","public fact_kpi_summary"]
+annotation PBI_QueryOrder = ["public dim_date","public dim_product","public dim_query","public dim_session","public dim_user","public fact_clicks","public fact_item_views","public fact_purchases","public fact_kpi_summary","public data_quality_summary","public dim_model","public fact_marketing_kpis","public fact_metrics","public session_summary","public model_metrics_summary","public fact_recommendation_eval","public dim_item","SR-GNN Measures"]
 
 annotation PBI_ProTooling = ["DevMode"]
 
@@ -23,7 +23,15 @@ ref table 'public fact_clicks'
 ref table 'public fact_item_views'
 ref table 'public fact_purchases'
 ref table 'public fact_kpi_summary'
-ref table LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb
+ref table 'public data_quality_summary'
+ref table 'public dim_model'
+ref table 'public fact_marketing_kpis'
+ref table 'public fact_metrics'
+ref table 'public session_summary'
+ref table 'public model_metrics_summary'
+ref table 'public fact_recommendation_eval'
+ref table 'public dim_item'
+ref table 'SR-GNN Measures'
 
 ref cultureInfo en-US
 

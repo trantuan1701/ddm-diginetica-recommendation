@@ -1,0 +1,154 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "chart_hr_by_session_bucket",
+  "position": {
+    "x": 648,
+    "y": 100,
+    "z": 1320,
+    "height": 180,
+    "width": 608
+  },
+  "visual": {
+    "visualType": "matrix",
+    "query": {
+      "queryState": {
+        "Columns": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public dim_model"
+                    }
+                  },
+                  "Property": "model_label"
+                }
+              },
+              "queryRef": "public dim_model.model_label"
+            }
+          ]
+        },
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public fact_recommendation_eval"
+                    }
+                  },
+                  "Property": "Session Length Bucket (Fixed)"
+                }
+              },
+              "queryRef": "public fact_recommendation_eval.Session Length Bucket (Fixed)"
+            }
+          ]
+        },
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "HR@20"
+                }
+              },
+              "queryRef": "SR-GNN Measures.HR@20"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "SR-GNN Measures"
+                  }
+                },
+                "Property": "HR@20"
+              }
+            },
+            "direction": "Descending"
+          }
+        ]
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'TABLE II: HR@20 across session length buckets'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "48f26f7eb07bd90bf546",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public fact_recommendation_eval"
+              }
+            },
+            "Property": "Session Length Bucket (Fixed)"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "035147494e8cb261eadf",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public dim_model"
+              }
+            },
+            "Property": "model_label"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "8f07ecfc4cc298d3daff",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "SR-GNN Measures"
+              }
+            },
+            "Property": "HR@20"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

@@ -1,0 +1,101 @@
+table 'public dim_item'
+	lineageTag: b871d344-8cee-47b2-a719-2827d1b4dd7a
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: f377533f-9f1c-41e0-8f7a-01524783b88f
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column pricelog2
+		dataType: double
+		lineageTag: 853211ae-8698-47b5-b90e-40343be35041
+		summarizeBy: none
+		sourceColumn: pricelog2
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column price_proxy
+		dataType: double
+		lineageTag: 97549ee8-624f-419c-aa91-1328e17f6576
+		summarizeBy: none
+		sourceColumn: price_proxy
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column product_name_tokens
+		dataType: string
+		lineageTag: fcb1afc0-40aa-4cd6-a824-49c580db563a
+		summarizeBy: none
+		sourceColumn: product_name_tokens
+
+		annotation SummarizationSetBy = Automatic
+
+	column primary_category_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 25eee309-30c3-4abc-8a93-e374e00740d5
+		summarizeBy: none
+		sourceColumn: primary_category_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column category_count
+		dataType: int64
+		formatString: 0
+		lineageTag: b8e4def4-3d18-4a2e-9aad-944b7cabad7a
+		summarizeBy: none
+		sourceColumn: category_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column category_ids
+		dataType: int64
+		formatString: 0
+		lineageTag: 9d1c13fb-3e7d-4dff-921f-3a0e6bffeeb6
+		summarizeBy: none
+		sourceColumn: category_ids
+
+		annotation SummarizationSetBy = Automatic
+
+	column item_view_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 75360186-2940-48c7-8ccd-d912c7cf2ff8
+		summarizeBy: none
+		sourceColumn: item_view_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column item_popularity_bucket
+		dataType: string
+		lineageTag: ff02c11f-6872-425d-98b1-915eabb303bd
+		summarizeBy: none
+		sourceColumn: item_popularity_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column category_name
+		dataType: string
+		lineageTag: a8556b87-5ab1-4865-8c14-74e1af698b24
+		summarizeBy: none
+		sourceColumn: category_name
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public dim_item' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_dim_item = Source{[Schema="public",Item="dim_item"]}[Data]
+				in
+				    public_dim_item
+

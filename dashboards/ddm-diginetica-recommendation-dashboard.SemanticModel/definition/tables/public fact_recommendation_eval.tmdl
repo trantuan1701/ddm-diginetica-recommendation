@@ -1,0 +1,187 @@
+table 'public fact_recommendation_eval'
+	lineageTag: 55e47fe4-b6ce-4cf6-ab90-84ecc48c774a
+
+	column rec_eval_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 1c90dbd8-607e-4442-92a9-fcb6d546ed22
+		summarizeBy: sum
+		sourceColumn: rec_eval_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column model_key
+		dataType: string
+		lineageTag: 35bdda8a-6787-4e21-99ea-bdd14ffcacc9
+		summarizeBy: none
+		sourceColumn: model_key
+
+		annotation SummarizationSetBy = Automatic
+
+	column example_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 506903b7-e07a-4cab-baea-a1f3197bf37f
+		summarizeBy: sum
+		sourceColumn: example_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 0161b350-3bff-4fd2-a0b5-45e3ae80ed45
+		summarizeBy: sum
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column item_id
+		dataType: int64
+		formatString: 0
+		lineageTag: e8674361-3c71-466a-8b34-11136954642a
+		summarizeBy: none
+		sourceColumn: item_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column target_item_id_raw
+		dataType: int64
+		formatString: 0
+		lineageTag: 1c57e253-c0e4-4a10-8f2a-e16c549646d9
+		summarizeBy: sum
+		sourceColumn: target_item_id_raw
+
+		annotation SummarizationSetBy = Automatic
+
+	column hit_at_k
+		dataType: double
+		lineageTag: 73d062f4-991f-4a7e-971a-82ed79f080d1
+		summarizeBy: sum
+		sourceColumn: hit_at_k
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column target_rank
+		dataType: int64
+		formatString: 0
+		lineageTag: ebad1796-0a1b-4571-9ac1-0f44972dc918
+		summarizeBy: sum
+		sourceColumn: target_rank
+
+		annotation SummarizationSetBy = Automatic
+
+	column reciprocal_rank
+		dataType: double
+		lineageTag: 1d6b91e4-c2d5-4680-a669-53859adb2df2
+		summarizeBy: sum
+		sourceColumn: reciprocal_rank
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column target_price_proxy
+		dataType: double
+		lineageTag: 2c6be132-2f64-439f-8731-4ada8ce75fe2
+		summarizeBy: sum
+		sourceColumn: target_price_proxy
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column target_primary_category_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 677204d6-6122-4d17-a8ab-e7b2b8fa9b0d
+		summarizeBy: sum
+		sourceColumn: target_primary_category_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column target_item_view_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 9fcf6500-5343-4475-8777-417f1449e924
+		summarizeBy: sum
+		sourceColumn: target_item_view_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column target_item_popularity_bucket
+		dataType: string
+		lineageTag: bcb773e7-f7d5-4757-b914-bc49754bc4bc
+		summarizeBy: none
+		sourceColumn: target_item_popularity_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column captured_value_proxy
+		dataType: double
+		lineageTag: fda19663-4a6e-4ab0-a090-bf2eae1a3b27
+		summarizeBy: sum
+		sourceColumn: captured_value_proxy
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column is_purchase_session
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: def269ba-279e-4c92-b11b-188680e73ed7
+		summarizeBy: none
+		sourceColumn: is_purchase_session
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_length_bucket
+		dataType: string
+		lineageTag: 1dc8884a-4c05-428a-8727-725db5f25686
+		summarizeBy: none
+		sourceColumn: session_length_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Session Length Bucket (Fixed)' =
+			SWITCH(TRUE(),
+			    'public fact_recommendation_eval'[target_item_view_count] <= 3, "1-3",
+			    'public fact_recommendation_eval'[target_item_view_count] <= 5, "4-5",
+			    'public fact_recommendation_eval'[target_item_view_count] <= 9, "6-9",
+			    'public fact_recommendation_eval'[target_item_view_count] <= 20, "10-20",
+			    "20+"
+			)
+		dataType: string
+		lineageTag: 1dc8884a-4c05-428a-8727-725db5f25687
+		summarizeBy: none
+		sortByColumn: 'Session Length Bucket Sort'
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Session Length Bucket Sort' =
+			SWITCH(TRUE(),
+			    'public fact_recommendation_eval'[target_item_view_count] <= 3, 1,
+			    'public fact_recommendation_eval'[target_item_view_count] <= 5, 2,
+			    'public fact_recommendation_eval'[target_item_view_count] <= 9, 3,
+			    'public fact_recommendation_eval'[target_item_view_count] <= 20, 4,
+			    5
+			)
+		dataType: int64
+		formatString: 0
+		lineageTag: 1dc8884a-4c05-428a-8727-725db5f25688
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public fact_recommendation_eval' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_fact_recommendation_eval = Source{[Schema="public",Item="fact_recommendation_eval"]}[Data]
+				in
+				    public_fact_recommendation_eval
+

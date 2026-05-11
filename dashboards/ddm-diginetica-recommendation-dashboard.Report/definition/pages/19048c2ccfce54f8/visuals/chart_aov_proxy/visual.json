@@ -1,0 +1,75 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "chart_aov_proxy",
+  "position": {
+    "x": 24,
+    "y": 512,
+    "z": 1500,
+    "height": 180,
+    "width": 608
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "timeframe"
+                }
+              },
+              "queryRef": "public session_summary.timeframe",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "AOV Proxy"
+                }
+              },
+              "queryRef": "SR-GNN Measures.AOV Proxy"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'AOV Proxy before and after SR-GNN intervention'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

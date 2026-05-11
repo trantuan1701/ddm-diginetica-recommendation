@@ -4,14 +4,14 @@
     {
       "ordinal": 0,
       "scrollPosition": {
-        "x": 553.54556088683216,
-        "y": 553.79426399641557
+        "x": 553.03540199323652,
+        "y": 553.03540199323652
       },
       "nodes": [
         {
           "location": {
-            "x": 1104.3150143909847,
-            "y": 1146.8161669103033
+            "x": 4213.2814773076607,
+            "y": 1192.6876956899159
           },
           "nodeIndex": "public dim_date",
           "nodeLineageTag": "2c7241ba-ef82-46ee-8ace-2e1b5d975dc9",
@@ -23,8 +23,8 @@
         },
         {
           "location": {
-            "x": 568.496209115696,
-            "y": 634.51948937614441
+            "x": 3677.4626720323722,
+            "y": 680.391018155757
           },
           "nodeIndex": "public dim_product",
           "nodeLineageTag": "644475dc-3861-4b45-888f-2f0929a696f8",
@@ -36,8 +36,8 @@
         },
         {
           "location": {
-            "x": 50,
-            "y": 512.5872445534817
+            "x": 3158.9664629166764,
+            "y": 558.45877333309431
           },
           "nodeIndex": "public dim_query",
           "nodeLineageTag": "7883ff25-a15a-4fde-bff1-6746aa475ebe",
@@ -49,8 +49,8 @@
         },
         {
           "location": {
-            "x": 1117.7307516634874,
-            "y": 568.81434326585827
+            "x": 4226.6972145801637,
+            "y": 614.68587204547089
           },
           "nodeIndex": "public dim_session",
           "nodeLineageTag": "0d3297b9-ec1c-4de9-b5f9-1aa05b57ca99",
@@ -62,8 +62,8 @@
         },
         {
           "location": {
-            "x": 843.96223542879125,
-            "y": -50
+            "x": 3952.9286983454676,
+            "y": -4.1284712203873823
           },
           "nodeIndex": "public dim_user",
           "nodeLineageTag": "f3feb39b-efb5-415a-8cf0-378503d7163f",
@@ -75,8 +75,8 @@
         },
         {
           "location": {
-            "x": 337.05496645358164,
-            "y": 384.05260789140016
+            "x": 3446.0214293702579,
+            "y": 429.92413667101277
           },
           "nodeIndex": "public fact_clicks",
           "nodeLineageTag": "6206457e-fac8-4a49-a4ad-73fd326eac06",
@@ -88,8 +88,8 @@
         },
         {
           "location": {
-            "x": 557.68416247206824,
-            "y": 37.284232589664725
+            "x": 3666.6506253887446,
+            "y": 83.155761369277343
           },
           "nodeIndex": "public fact_item_views",
           "nodeLineageTag": "1a11728b-bff9-464d-b1e0-910c42784657",
@@ -101,8 +101,8 @@
         },
         {
           "location": {
-            "x": 855.18992586728314,
-            "y": 845.83375068300052
+            "x": 3964.1563887839593,
+            "y": 891.70527946261313
           },
           "nodeIndex": "public fact_purchases",
           "nodeLineageTag": "30d58424-0c3f-4c61-afbb-61c00daa693b",
@@ -114,11 +114,128 @@
         },
         {
           "location": {
-            "x": 1556.8743693155798,
-            "y": 1014.0910840318946
+            "x": 4665.8408322322557,
+            "y": 1059.9626128115074
           },
           "nodeIndex": "public fact_kpi_summary",
           "nodeLineageTag": "0f46f238-3b79-4436-9565-232c046904b2",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2590.9664629166764,
+            "y": 692.27961223476427
+          },
+          "nodeIndex": "public data_quality_summary",
+          "nodeLineageTag": "e23abb40-ec33-46a4-819c-cf13f9b6061e",
+          "size": {
+            "height": 128,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2356.9664629166764,
+            "y": 67.812183757980279
+          },
+          "nodeIndex": "public dim_item",
+          "nodeLineageTag": "b871d344-8cee-47b2-a719-2827d1b4dd7a",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1887.4258530969951,
+            "y": 771.46019019618529
+          },
+          "nodeIndex": "public dim_model",
+          "nodeLineageTag": "4300aed8-617f-426e-8471-07ceaa8acb26",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2174.4418650669149,
+            "y": 1026.6776596201298
+          },
+          "nodeIndex": "public fact_marketing_kpis",
+          "nodeLineageTag": "11214ce1-904d-4750-8d03-4855bb0bfbc0",
+          "size": {
+            "height": 248,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1669.1559087656456,
+            "y": 1072.7470407115484
+          },
+          "nodeIndex": "public fact_metrics",
+          "nodeLineageTag": "2a8286f8-5d64-49b3-a736-b00152b28f44",
+          "size": {
+            "height": 272,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2125.457580949706,
+            "y": 417.99673810874322
+          },
+          "nodeIndex": "public fact_recommendation_eval",
+          "nodeLineageTag": "55e47fe4-b6ce-4cf6-ab90-84ecc48c774a",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 1600.3832613832965,
+            "y": 663.69999779755437
+          },
+          "nodeIndex": "public model_metrics_summary",
+          "nodeLineageTag": "384d3409-3485-4bda-8c3e-01f61ea4ed18",
+          "size": {
+            "height": 200,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 2874.9664629166764,
+            "y": 606.27961223476427
+          },
+          "nodeIndex": "public session_summary",
+          "nodeLineageTag": "78630661-2fc3-4a86-914e-957914587364",
+          "size": {
+            "height": 300,
+            "width": 234
+          },
+          "zIndex": 0
+        },
+        {
+          "location": {
+            "x": 3349.4575708489592,
+            "y": 560.40808345515165
+          },
+          "nodeIndex": "SR-GNN Measures",
+          "nodeLineageTag": "a7769970-d72b-4f9e-a89c-4877f0d06983",
           "size": {
             "height": 300,
             "width": 234

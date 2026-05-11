@@ -1,0 +1,203 @@
+table 'SR-GNN Measures'
+	lineageTag: a7769970-d72b-4f9e-a89c-4877f0d06983
+
+	measure HR@20 =
+			VAR MetricFromFact =
+			    CALCULATE (
+			        AVERAGE ( 'public fact_metrics'[metric_value] ),
+			        'public fact_metrics'[metric_name] IN {"HR@20", "HR", "hr20"},
+			        'public fact_metrics'[k] IN {20, BLANK()}
+			    )
+			VAR MetricFromEval =
+			    CALCULATE ( AVERAGE ( 'public fact_recommendation_eval'[hit_at_k] ) )
+			RETURN
+			    COALESCE ( MetricFromFact, MetricFromEval )
+		formatString: 0.0000
+		lineageTag: b691f162-426b-4f0f-8c01-789a74f4b961
+
+	measure MRR@20 =
+			VAR MetricFromFact =
+			    CALCULATE (
+			        AVERAGE ( 'public fact_metrics'[metric_value] ),
+			        'public fact_metrics'[metric_name] IN {"MRR@20", "MRR", "mrr20"},
+			        'public fact_metrics'[k] IN {20, BLANK()}
+			    )
+			VAR MetricFromEval =
+			    CALCULATE ( AVERAGE ( 'public fact_recommendation_eval'[reciprocal_rank] ) )
+			RETURN
+			    COALESCE ( MetricFromFact, MetricFromEval )
+		formatString: 0.0000
+		lineageTag: d63f35a1-7c5b-402a-a92c-567e914d86c4
+
+	measure Coverage@20 =
+			VAR MetricFromFact =
+			    CALCULATE (
+			        AVERAGE ( 'public fact_metrics'[metric_value] ),
+			        'public fact_metrics'[metric_name] IN {"Coverage@20", "Catalog Coverage@20", "coverage20", "Coverage"},
+			        'public fact_metrics'[k] IN {20, BLANK()}
+			    )
+			VAR MetricFromEval =
+			    DIVIDE (
+			        DISTINCTCOUNT ( 'public fact_recommendation_eval'[target_item_id_raw] ),
+			        DISTINCTCOUNT ( 'public dim_item'[item_id] )
+			    )
+			RETURN
+			    COALESCE ( MetricFromFact, MetricFromEval )
+		formatString: 0.0%
+		lineageTag: f491e2b5-3d5a-4e2b-b89c-d47e814d86c4
+
+	measure 'SR-GNN HR@20' = CALCULATE ( [HR@20], ALL ( 'public dim_model' ), 'public dim_model'[model_label] = "SR-GNN" )
+		formatString: 0.0000
+		lineageTag: 2471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Co-occurrence HR@20' = CALCULATE ( [HR@20], ALL ( 'public dim_model' ), 'public dim_model'[model_label] = "Co-occurrence" )
+		formatString: 0.0000
+		lineageTag: 3471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'HR@20 Uplift vs Co-occurrence' = DIVIDE ( [SR-GNN HR@20] - [Co-occurrence HR@20], [Co-occurrence HR@20] )
+		formatString: 0.0%
+		lineageTag: 4471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'SR-GNN MRR@20' = CALCULATE ( [MRR@20], ALL ( 'public dim_model' ), 'public dim_model'[model_label] = "SR-GNN" )
+		formatString: 0.0000
+		lineageTag: 5471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Co-occurrence MRR@20' = CALCULATE ( [MRR@20], ALL ( 'public dim_model' ), 'public dim_model'[model_label] = "Co-occurrence" )
+		formatString: 0.0000
+		lineageTag: 6471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'MRR@20 Uplift vs Co-occurrence' = DIVIDE ( [SR-GNN MRR@20] - [Co-occurrence MRR@20], [Co-occurrence MRR@20] )
+		formatString: 0.0%
+		lineageTag: 7471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'SR-GNN Coverage@20' = CALCULATE ( [Coverage@20], ALL ( 'public dim_model' ), 'public dim_model'[model_label] = "SR-GNN" )
+		formatString: 0.0%
+		lineageTag: 8471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Total Sessions (Summary)' = CALCULATE ( DISTINCTCOUNT ( 'public session_summary'[session_id] ), REMOVEFILTERS ( 'public dim_model' ) )
+		formatString: #,0
+		lineageTag: 9471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure '% Sessions (Segment)' = DIVIDE ( [Total Sessions (Summary)], CALCULATE ( [Total Sessions (Summary)], ALL ( 'public session_summary'[segment] ) ) )
+		formatString: 0.0%
+		lineageTag: 9471f162-426b-4f0f-8c01-789a74f4b962
+
+	measure 'Sessions With Purchase (Summary)' = CALCULATE ( [Total Sessions (Summary)], 'public session_summary'[has_purchase] = TRUE () )
+		formatString: #,0
+		lineageTag: a471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Conversion Rate (Summary)' = DIVIDE ( [Sessions With Purchase (Summary)], [Total Sessions (Summary)] )
+		formatString: 0.0%
+		lineageTag: b471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Conversion Rate Before' = CALCULATE ( [Conversion Rate (Summary)], 'public session_summary'[timeframe] = "Trước (gốc)" )
+		formatString: 0.0%
+		lineageTag: c471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Conversion Rate After' = CALCULATE ( [Conversion Rate (Summary)], 'public session_summary'[timeframe] = "Sau (có model)" )
+		formatString: 0.0%
+		lineageTag: d471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Purchase Rate Uplift PP' = [Conversion Rate After] - [Conversion Rate Before]
+		formatString: 0.0 "pp"
+		lineageTag: e471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Conversion Rate Uplift %' = DIVIDE ( [Conversion Rate After] - [Conversion Rate Before], [Conversion Rate Before] )
+		formatString: 0.0%
+		lineageTag: f471f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Has View Rate' =
+			DIVIDE (
+			    CALCULATE ( DISTINCTCOUNT ( 'public session_summary'[session_id] ), 'public session_summary'[view_count] >= 1 ),
+			    [Total Sessions (Summary)]
+			)
+		formatString: 0.0%
+		lineageTag: 0571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Five Plus Views Rate' =
+			DIVIDE (
+			    CALCULATE ( DISTINCTCOUNT ( 'public session_summary'[session_id] ), 'public session_summary'[view_count] >= 5 ),
+			    [Total Sessions (Summary)]
+			)
+		formatString: 0.0%
+		lineageTag: 1571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Purchase Rate (Summary)' = [Conversion Rate (Summary)]
+		formatString: 0.0%
+		lineageTag: 2571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'AOV Proxy' =
+			CALCULATE (
+			    AVERAGEX (
+			        'public fact_purchases',
+			        COALESCE ( RELATED ( 'public dim_item'[price_proxy] ), POWER ( 2, RELATED ( 'public dim_item'[pricelog2] ) ) - 1 )
+			    ),
+			    ALL ( 'public dim_model' )
+			)
+		formatString: #,0
+		lineageTag: 3571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'AOV Proxy Before' = CALCULATE ( [AOV Proxy], 'public session_summary'[timeframe] = "Trước (gốc)" )
+		formatString: #,0
+		lineageTag: 4571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'AOV Proxy After' = CALCULATE ( [AOV Proxy], 'public session_summary'[timeframe] = "Sau (có model)" )
+		formatString: #,0
+		lineageTag: 5571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'AOV Proxy Uplift' = DIVIDE ( [AOV Proxy After] - [AOV Proxy Before], [AOV Proxy Before] )
+		formatString: 0.0%
+		lineageTag: 6571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Total Items (Model)' = DISTINCTCOUNT ( 'public dim_item'[item_id] )
+		formatString: #,0
+		lineageTag: 7571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Total Purchases (Model)' = COUNTROWS ( 'public fact_purchases' )
+		formatString: #,0
+		lineageTag: 8571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Number of Models' = DISTINCTCOUNT ( 'public dim_model'[model_key] )
+		formatString: #,0
+		lineageTag: 9571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Missing session_id count' = COUNTROWS ( FILTER ( 'public fact_recommendation_eval', ISBLANK ( 'public fact_recommendation_eval'[session_id] ) ) )
+		formatString: #,0
+		lineageTag: a571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Missing item_id count' = COUNTROWS ( FILTER ( 'public fact_recommendation_eval', ISBLANK ( 'public fact_recommendation_eval'[target_item_id_raw] ) ) )
+		formatString: #,0
+		lineageTag: b571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Missing model_key count' = COUNTROWS ( FILTER ( 'public fact_recommendation_eval', ISBLANK ( 'public fact_recommendation_eval'[model_key] ) ) )
+		formatString: #,0
+		lineageTag: c571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Missing price_proxy count' = COUNTROWS ( FILTER ( 'public dim_item', ISBLANK ( 'public dim_item'[price_proxy] ) ) )
+		formatString: #,0
+		lineageTag: d571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Date Range Start' = MIN ( 'public fact_item_views'[date_key] )
+		formatString: yyyy-MM-dd
+		lineageTag: e571f162-426b-4f0f-8c01-789a74f4b961
+
+	measure 'Date Range End' = MAX ( 'public fact_item_views'[date_key] )
+		formatString: yyyy-MM-dd
+		lineageTag: f571f162-426b-4f0f-8c01-789a74f4b961
+
+	column Placeholder
+		dataType: string
+		lineageTag: 87d215b7-7233-45d8-8aca-9ab616a4714b
+		summarizeBy: none
+		sourceColumn: Placeholder
+
+		annotation SummarizationSetBy = Automatic
+
+	partition Partition = m
+		mode: import
+		source =
+				let
+				    Source = #table({"Placeholder"}, {{"Measures"}})
+				in
+				    Source
+

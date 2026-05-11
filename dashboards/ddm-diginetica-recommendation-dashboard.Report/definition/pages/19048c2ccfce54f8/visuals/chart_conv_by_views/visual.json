@@ -1,0 +1,92 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "chart_conv_by_views",
+  "position": {
+    "x": 24,
+    "y": 296,
+    "z": 1400,
+    "height": 200,
+    "width": 608
+  },
+  "visual": {
+    "visualType": "lineChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "Conversion View Bucket (Fixed)"
+                }
+              },
+              "queryRef": "public session_summary.Conversion View Bucket (Fixed)",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "timeframe"
+                }
+              },
+              "queryRef": "public session_summary.timeframe"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "Conversion Rate (Summary)"
+                }
+              },
+              "queryRef": "SR-GNN Measures.Conversion Rate (Summary)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Conversion rate by session length before and after SR-GNN intervention'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -13,6 +13,7 @@ from sqlalchemy import create_engine, text
 
 ANONYMOUS_USER_ID = -1
 COPY_CHUNK_ROWS = 100_000
+HELPER_ROOT = Path("dashboards/powerbi_data")
 FK_CONSTRAINT_PATTERN = re.compile(
     r",\s*\n\s*CONSTRAINT\s+(?P<name>\w+)\s*\n"
     r"\s*FOREIGN\s+KEY\s*\((?P<columns>[^)]+)\)\s*\n"
@@ -30,6 +31,14 @@ TABLE_LOAD_ORDER = [
     "fact_purchases",
     "fact_clicks",
     "fact_kpi_summary",
+    "dim_model",
+    "dim_item",
+    "fact_metrics",
+    "fact_recommendation_eval",
+    "fact_marketing_kpis",
+    "session_summary",
+    "model_metrics_summary",
+    "data_quality_summary",
 ]
 
 
@@ -54,6 +63,12 @@ def _read_csv(path: Path, **kwargs) -> pd.DataFrame:
     if not path.exists():
         raise FileNotFoundError(f"Required file not found: {path}")
     return pd.read_csv(path, sep=";", **kwargs)
+
+
+def _read_optional_csv(path: Path, sep: str = ",") -> pd.DataFrame:
+    if not path.exists():
+        return pd.DataFrame()
+    return pd.read_csv(path, sep=sep)
 
 
 def _as_int(series: pd.Series, fill_value: int | None = None) -> pd.Series:
@@ -166,26 +181,42 @@ def _apply_schema(engine, schema_path: Path) -> None:
 
     print(f"Applying schema from {schema_path} without bulk-load FK checks/indexes...")
     table_and_check_statements, _, _ = _schema_statements(schema_path)
-    with engine.begin() as conn:
-        for statement in table_and_check_statements:
+    for statement in table_and_check_statements:
+        with engine.begin() as conn:
             conn.execute(text(statement))
     print("Schema applied successfully.")
 
 
 def _apply_post_load_schema(engine, schema_path: Path) -> None:
+    import time
+
+    from sqlalchemy.exc import OperationalError
+
     _, index_statements, fk_statements = _schema_statements(schema_path)
+    
+    def execute_with_retry(statement: str, max_retries: int = 3):
+        for attempt in range(max_retries):
+            try:
+                with engine.begin() as conn:
+                    conn.execute(text(statement))
+                return
+            except OperationalError as e:
+                if "connection has been closed unexpectedly" in str(e) and attempt < max_retries - 1:
+                    print(f"Connection dropped. Retrying ({attempt + 1}/{max_retries})...")
+                    time.sleep(2)
+                    continue
+                raise
+
     print("Creating post-load indexes...")
-    with engine.begin() as conn:
-        for statement in index_statements:
-            conn.execute(text(statement))
+    for statement in index_statements:
+        execute_with_retry(statement)
     print("Post-load indexes ready.")
 
     if not fk_statements:
         return
     print("Adding foreign-key constraints as NOT VALID...")
-    with engine.begin() as conn:
-        for statement in fk_statements:
-            conn.execute(text(statement))
+    for statement in fk_statements:
+        execute_with_retry(statement)
     print("Foreign-key constraints added.")
 
 
@@ -293,10 +324,19 @@ def _load_source_frames() -> dict[str, pd.DataFrame]:
     raw_root = Path("data/raw/diginetica")
     return {
         "dim_item": _load_parquet(mart_root / "dim_item.parquet"),
+        "dim_model_mart": _load_parquet(mart_root / "dim_model.parquet"),
+        "fact_metrics_mart": _load_parquet(mart_root / "fact_metrics.parquet"),
+        "fact_recommendation_eval_mart": _load_parquet(mart_root / "fact_recommendation_eval.parquet"),
+        "fact_marketing_kpis_mart": _load_parquet(mart_root / "fact_marketing_kpis.parquet"),
         "session_summary": _load_parquet(mart_root / "fact_session_summary.parquet"),
         "clean_item_views": _load_parquet(processed_root / "clean_item_views.parquet"),
         "clean_purchases": _load_parquet(processed_root / "clean_purchases.parquet"),
         "train_clicks": _read_csv(raw_root / "train-clicks.csv"),
+        "pbi_session_summary": _read_optional_csv(HELPER_ROOT / "pbi_session_summary.csv"),
+        "pbi_model_metrics_summary": _read_optional_csv(HELPER_ROOT / "pbi_model_metrics_summary.csv"),
+        "pbi_data_quality_summary": _read_optional_csv(HELPER_ROOT / "pbi_data_quality_summary.csv"),
+        "pbi_offline_metrics": _read_optional_csv(HELPER_ROOT / "pbi_offline_metrics.csv"),
+        "pbi_hr_by_bucket": _read_optional_csv(HELPER_ROOT / "pbi_hr_by_bucket.csv"),
     }
 
 
@@ -549,6 +589,295 @@ def _build_fact_kpi_summary(
     return kpi
 
 
+def _normalize_model_label(value: str) -> str:
+    lowered = value.strip().lower()
+    if lowered in {"sr-gnn", "srgnn", "sr_gnn", "recsys-serving"} or "sr" in lowered:
+        return "SR-GNN"
+    if "co" in lowered and "occur" in lowered:
+        return "Co-occurrence"
+    if "pop" in lowered:
+        return "Popularity"
+    return value
+
+
+def _build_dim_model_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    dim_model = frames["dim_model_mart"].copy()
+    offline = frames["pbi_offline_metrics"].copy()
+
+    # Base model from mart
+    dim_model["model_key"] = dim_model["model_key"].astype(str)
+    label_source = dim_model.get("model_family", dim_model["model_key"]).astype(str)
+    dim_model["model_label"] = label_source.apply(_normalize_model_label)
+
+    res = pd.DataFrame(
+        {
+            "model_key": dim_model["model_key"],
+            "model_label": dim_model["model_label"],
+            "model_family": dim_model.get("model_family"),
+            "model_role": dim_model.get("model_role"),
+            "top_k": _as_int(dim_model.get("top_k")),
+            "source_type": dim_model.get("source_type"),
+            "warning_text": dim_model.get("warning_text"),
+        }
+    )
+
+    # Add baselines from offline metrics
+    if not offline.empty:
+        baselines = []
+        for model_name in ["Co-occurrence", "Popularity"]:
+            if model_name in offline["model"].values:
+                baselines.append(
+                    {
+                        "model_key": model_name.lower().replace("-", "_"),
+                        "model_label": model_name,
+                        "model_family": "baseline",
+                        "model_role": "baseline",
+                        "top_k": 20,
+                        "source_type": "offline_csv",
+                        "warning_text": "Baseline model from report data.",
+                    }
+                )
+        if baselines:
+            res = pd.concat([res, pd.DataFrame(baselines)], ignore_index=True)
+
+    return res.drop_duplicates(subset=["model_key"])
+
+
+def _build_dim_item_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    dim_item = frames["dim_item"].copy()
+    if dim_item.empty:
+        return pd.DataFrame(
+            columns=[
+                "item_id",
+                "pricelog2",
+                "price_proxy",
+                "product_name_tokens",
+                "primary_category_id",
+                "category_count",
+                "category_ids",
+                "item_view_count",
+                "item_popularity_bucket",
+                "category_name",
+            ]
+        )
+
+    return pd.DataFrame(
+        {
+            "item_id": _as_int(dim_item["item_id"]),
+            "pricelog2": pd.to_numeric(dim_item.get("pricelog2"), errors="coerce"),
+            "price_proxy": pd.to_numeric(dim_item.get("price_proxy"), errors="coerce"),
+            "product_name_tokens": dim_item.get("product_name_tokens"),
+            "primary_category_id": _as_int(dim_item.get("primary_category_id")),
+            "category_count": _as_int(dim_item.get("category_count")),
+            "category_ids": _as_int(dim_item.get("category_ids")),
+            "item_view_count": _as_int(dim_item.get("item_view_count")),
+            "item_popularity_bucket": dim_item.get("item_popularity_bucket"),
+            "category_name": pd.Series([None] * len(dim_item)),
+        }
+    ).drop_duplicates(subset=["item_id"])
+
+
+def _build_fact_metrics_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    metrics = frames["fact_metrics_mart"].copy()
+    offline = frames["pbi_offline_metrics"].copy()
+
+    if metrics.empty and offline.empty:
+        return pd.DataFrame(
+            columns=["model_key", "metric_name", "metric_value", "k", "metric_scope", "source", "warning_text"]
+        )
+
+    res_list = []
+    if not metrics.empty:
+        metric_name = metrics["metric_name"].astype(str).str.replace("Catalog Coverage@20", "Coverage@20", regex=False)
+        res_list.append(
+            pd.DataFrame(
+                {
+                    "model_key": metrics["model_key"].astype(str),
+                    "metric_name": metric_name,
+                    "metric_value": pd.to_numeric(metrics["metric_value"], errors="coerce"),
+                    "k": _as_int(metrics.get("k")),
+                    "metric_scope": metrics.get("metric_scope"),
+                    "source": metrics.get("source"),
+                    "warning_text": metrics.get("warning_text"),
+                }
+            )
+        )
+
+    # Add baseline metrics
+    if not offline.empty:
+        for _, row in offline.iterrows():
+            model_name = row["model"]
+            if model_name in ["Co-occurrence", "Popularity"]:
+                m_key = model_name.lower().replace("-", "_")
+                for m_name, csv_col in [("HR@20", "hr20"), ("MRR@20", "mrr20"), ("Coverage@20", "coverage20")]:
+                    res_list.append(
+                        pd.DataFrame(
+                            [
+                                {
+                                    "model_key": m_key,
+                                    "metric_name": m_name,
+                                    "metric_value": row[csv_col],
+                                    "k": 20,
+                                    "metric_scope": "test_set",
+                                    "source": "offline_csv",
+                                    "warning_text": None,
+                                }
+                            ]
+                        )
+                    )
+
+    return pd.concat(res_list, ignore_index=True) if res_list else pd.DataFrame()
+
+
+def _build_fact_recommendation_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    eval_df = frames["fact_recommendation_eval_mart"].copy()
+    if eval_df.empty:
+        return pd.DataFrame(
+            columns=[
+                "model_key",
+                "example_id",
+                "session_id",
+                "item_id",
+                "target_item_id_raw",
+                "hit_at_k",
+                "target_rank",
+                "reciprocal_rank",
+                "target_price_proxy",
+                "target_primary_category_id",
+                "target_item_view_count",
+                "target_item_popularity_bucket",
+                "captured_value_proxy",
+                "is_purchase_session",
+                "session_length_bucket",
+            ]
+        )
+
+    item_id = _as_int(eval_df.get("target_item_id_raw"))
+    return pd.DataFrame(
+        {
+            "model_key": eval_df["model_key"].astype(str),
+            "example_id": _as_int(eval_df.get("example_id")),
+            "session_id": _as_int(eval_df.get("session_id")),
+            "item_id": item_id,
+            "target_item_id_raw": item_id,
+            "hit_at_k": pd.to_numeric(eval_df.get("hit_at_k"), errors="coerce"),
+            "target_rank": _as_int(eval_df.get("target_rank")),
+            "reciprocal_rank": pd.to_numeric(eval_df.get("reciprocal_rank"), errors="coerce"),
+            "target_price_proxy": pd.to_numeric(eval_df.get("target_price_proxy"), errors="coerce"),
+            "target_primary_category_id": _as_int(eval_df.get("target_primary_category_id")),
+            "target_item_view_count": _as_int(eval_df.get("target_item_view_count")),
+            "target_item_popularity_bucket": eval_df.get("target_item_popularity_bucket"),
+            "captured_value_proxy": pd.to_numeric(eval_df.get("captured_value_proxy"), errors="coerce"),
+            "is_purchase_session": eval_df.get("is_purchase_session").astype("boolean"),
+            "session_length_bucket": eval_df.get("session_length_bucket"),
+        }
+    )
+
+
+def _build_fact_marketing_kpis(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    kpis = frames["fact_marketing_kpis_mart"].copy()
+    if kpis.empty:
+        return pd.DataFrame(columns=["model_key", "k", "kpi_name", "kpi_value", "kpi_scope", "warning_text"])
+    return pd.DataFrame(
+        {
+            "model_key": kpis["model_key"].astype(str),
+            "k": _as_int(kpis.get("k")),
+            "kpi_name": kpis.get("kpi_name"),
+            "kpi_value": pd.to_numeric(kpis.get("kpi_value"), errors="coerce"),
+            "kpi_scope": kpis.get("kpi_scope"),
+            "warning_text": kpis.get("warning_text"),
+        }
+    )
+
+
+def _build_session_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    session = frames["pbi_session_summary"].copy()
+    if session.empty:
+        return pd.DataFrame(
+            columns=[
+                "session_id",
+                "timeframe",
+                "view_count",
+                "unique_items_viewed",
+                "has_purchase",
+                "purchase_count",
+                "quantity_sum",
+                "session_length_bucket",
+                "session_view_bucket_for_conversion",
+                "segment",
+            ]
+        )
+    has_purchase = session["has_purchase"] if "has_purchase" in session.columns else pd.Series(False, index=session.index)
+    return pd.DataFrame(
+        {
+            "session_id": _as_int(session.get("session_id")),
+            "timeframe": session.get("timeframe"),
+            "view_count": _as_int(session.get("view_count"), fill_value=0),
+            "unique_items_viewed": _as_int(session.get("unique_items_viewed"), fill_value=0),
+            "has_purchase": has_purchase.fillna(False).astype(bool),
+            "purchase_count": _as_int(session.get("purchase_count"), fill_value=0),
+            "quantity_sum": pd.to_numeric(session.get("quantity_sum"), errors="coerce").fillna(0.0),
+            "session_length_bucket": session.get("session_length_bucket"),
+            "session_view_bucket_for_conversion": session.get("session_view_bucket_for_conversion"),
+            "segment": session.get("segment"),
+        }
+    ).drop_duplicates(subset=["session_id"])
+
+
+def _build_model_metrics_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    summary = frames["pbi_model_metrics_summary"].copy()
+    offline = frames["pbi_offline_metrics"].copy()
+
+    res_list = []
+    if not summary.empty:
+        res_list.append(
+            pd.DataFrame(
+                {
+                    "model_key": summary["model_key"].astype(str),
+                    "model_label": summary.get("model_label"),
+                    "hr_at_20": pd.to_numeric(summary.get("HR@20"), errors="coerce"),
+                    "mrr_at_20": pd.to_numeric(summary.get("MRR@20"), errors="coerce"),
+                    "coverage_at_20": pd.to_numeric(summary.get("Coverage@20"), errors="coerce"),
+                }
+            )
+        )
+
+    # Add baselines
+    if not offline.empty:
+        for _, row in offline.iterrows():
+            model_name = row["model"]
+            if model_name in ["Co-occurrence", "Popularity"]:
+                res_list.append(
+                    pd.DataFrame(
+                        [
+                            {
+                                "model_key": model_name.lower().replace("-", "_"),
+                                "model_label": model_name,
+                                "hr_at_20": row["hr20"],
+                                "mrr_at_20": row["mrr20"],
+                                "coverage_at_20": row["coverage20"],
+                            }
+                        ]
+                    )
+                )
+
+    return pd.concat(res_list, ignore_index=True) if res_list else pd.DataFrame()
+
+
+def _build_data_quality_summary_eval(frames: dict[str, pd.DataFrame]) -> pd.DataFrame:
+    summary = frames["pbi_data_quality_summary"].copy()
+    if summary.empty:
+        return pd.DataFrame(columns=["metric_name", "metric_value"])
+    metric_name = summary["metric_name"] if "metric_name" in summary.columns else pd.Series([], dtype="object")
+    metric_value = summary["metric_value"] if "metric_value" in summary.columns else pd.Series([], dtype="object")
+    return pd.DataFrame(
+        {
+            "metric_name": metric_name.astype(str),
+            "metric_value": metric_value.astype(str),
+        }
+    ).drop_duplicates(subset=["metric_name"])
+
+
 def _build_upload_frames() -> dict[str, pd.DataFrame]:
     frames = _load_source_frames()
     upload_frames = {
@@ -562,6 +891,14 @@ def _build_upload_frames() -> dict[str, pd.DataFrame]:
         "fact_clicks": _build_fact_clicks(frames),
     }
     upload_frames["fact_kpi_summary"] = _build_fact_kpi_summary(upload_frames)
+    upload_frames["dim_model"] = _build_dim_model_eval(frames)
+    upload_frames["dim_item"] = _build_dim_item_eval(frames)
+    upload_frames["fact_metrics"] = _build_fact_metrics_eval(frames)
+    upload_frames["fact_recommendation_eval"] = _build_fact_recommendation_eval(frames)
+    upload_frames["fact_marketing_kpis"] = _build_fact_marketing_kpis(frames)
+    upload_frames["session_summary"] = _build_session_summary_eval(frames)
+    upload_frames["model_metrics_summary"] = _build_model_metrics_summary_eval(frames)
+    upload_frames["data_quality_summary"] = _build_data_quality_summary_eval(frames)
     return upload_frames
 
 
@@ -570,14 +907,24 @@ def upload_to_db(fresh=False):
     if not postgres_url:
         return
 
-    engine = create_engine(postgres_url)
+    upload_frames = _build_upload_frames()
+
+    engine = create_engine(
+        postgres_url,
+        pool_pre_ping=True,
+        connect_args={
+            "keepalives": 1,
+            "keepalives_idle": 30,
+            "keepalives_interval": 10,
+            "keepalives_count": 5,
+        },
+    )
 
     if fresh:
         _wipe_current_schema(engine)
 
     _apply_schema(engine, Path("sql/schema.sql"))
 
-    upload_frames = _build_upload_frames()
     for table_name in TABLE_LOAD_ORDER:
         print(f"Uploading {table_name}...")
         _upload_df(engine, table_name, upload_frames[table_name])

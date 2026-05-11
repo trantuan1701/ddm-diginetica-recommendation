@@ -1,0 +1,101 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "chart_funnel",
+  "position": {
+    "x": 648,
+    "y": 296,
+    "z": 1410,
+    "height": 200,
+    "width": 608
+  },
+  "visual": {
+    "visualType": "clusteredColumnChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "timeframe"
+                }
+              },
+              "queryRef": "public session_summary.timeframe",
+              "active": true
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "Has View Rate"
+                }
+              },
+              "queryRef": "SR-GNN Measures.Has View Rate"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "Five Plus Views Rate"
+                }
+              },
+              "queryRef": "SR-GNN Measures.Five Plus Views Rate"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "Purchase Rate (Summary)"
+                }
+              },
+              "queryRef": "SR-GNN Measures.Purchase Rate (Summary)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Step-wise conversion funnel before and after SR-GNN intervention'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

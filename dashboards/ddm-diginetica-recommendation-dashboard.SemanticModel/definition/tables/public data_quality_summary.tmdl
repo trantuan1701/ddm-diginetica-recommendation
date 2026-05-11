@@ -1,0 +1,28 @@
+table 'public data_quality_summary'
+	lineageTag: e23abb40-ec33-46a4-819c-cf13f9b6061e
+
+	column metric_name
+		dataType: string
+		lineageTag: 1164a93e-08ce-452f-a8fd-980a7a78f0be
+		summarizeBy: none
+		sourceColumn: metric_name
+
+		annotation SummarizationSetBy = Automatic
+
+	column metric_value
+		dataType: string
+		lineageTag: 2b7958db-b3fe-4e0d-90af-535e597071a6
+		summarizeBy: none
+		sourceColumn: metric_value
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public data_quality_summary' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_data_quality_summary = Source{[Schema="public",Item="data_quality_summary"]}[Data]
+				in
+				    public_data_quality_summary
+

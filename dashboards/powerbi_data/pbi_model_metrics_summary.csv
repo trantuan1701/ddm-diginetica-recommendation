@@ -1,0 +1,2 @@
+model_key,model_label,HR@20,MRR@20,Coverage@20
+recsys-serving,recsys-serving,0.5416249183184492,0.18315839816184917,0.9355062413314841

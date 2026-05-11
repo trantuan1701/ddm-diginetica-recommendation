@@ -1,0 +1,138 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.8.0/schema.json",
+  "name": "chart_segmentation",
+  "position": {
+    "x": 648,
+    "y": 512,
+    "z": 1420,
+    "height": 180,
+    "width": 608
+  },
+  "visual": {
+    "visualType": "barChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "segment"
+                }
+              },
+              "queryRef": "public session_summary.segment",
+              "active": true
+            }
+          ]
+        },
+        "Series": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "public session_summary"
+                    }
+                  },
+                  "Property": "timeframe"
+                }
+              },
+              "queryRef": "public session_summary.timeframe"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "SR-GNN Measures"
+                    }
+                  },
+                  "Property": "% Sessions (Segment)"
+                }
+              },
+              "queryRef": "SR-GNN Measures.% Sessions (Segment)"
+            }
+          ]
+        }
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Session segmentation by interaction frequency and purchase outcome'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  "filterConfig": {
+    "filters": [
+      {
+        "name": "c6cff19a74235e7b2170",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public session_summary"
+              }
+            },
+            "Property": "segment"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "169e8dd799430cb91945",
+        "field": {
+          "Column": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "public session_summary"
+              }
+            },
+            "Property": "timeframe"
+          }
+        },
+        "type": "Categorical"
+      },
+      {
+        "name": "7cf56b4b394e0f98b6c1",
+        "field": {
+          "Measure": {
+            "Expression": {
+              "SourceRef": {
+                "Entity": "SR-GNN Measures"
+              }
+            },
+            "Property": "% Sessions (Segment)"
+          }
+        },
+        "type": "Advanced"
+      }
+    ]
+  }
+}

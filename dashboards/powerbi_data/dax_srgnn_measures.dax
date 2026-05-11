@@ -1,0 +1,146 @@
+// ---------- Core Offline Metrics ----------
+HR@20 :=
+VAR MetricFromFact =
+    CALCULATE (
+        AVERAGE ( FactMetrics[metric_value] ),
+        FactMetrics[metric_name] = "HR@20" || FactMetrics[metric_name] = "HR",
+        FactMetrics[k] = 20
+    )
+VAR MetricFromEval =
+    CALCULATE ( AVERAGE ( FactRecommendationEval[hit_at_k] ) )
+RETURN
+    COALESCE ( MetricFromFact, MetricFromEval )
+
+MRR@20 :=
+VAR MetricFromFact =
+    CALCULATE (
+        AVERAGE ( FactMetrics[metric_value] ),
+        FactMetrics[metric_name] = "MRR@20" || FactMetrics[metric_name] = "MRR",
+        FactMetrics[k] = 20
+    )
+VAR MetricFromEval =
+    CALCULATE ( AVERAGE ( FactRecommendationEval[reciprocal_rank] ) )
+RETURN
+    COALESCE ( MetricFromFact, MetricFromEval )
+
+Coverage@20 :=
+VAR MetricFromFact =
+    CALCULATE (
+        AVERAGE ( FactMetrics[metric_value] ),
+        FactMetrics[metric_name] = "Coverage@20" || FactMetrics[metric_name] = "Catalog Coverage@20",
+        FactMetrics[k] = 20
+    )
+VAR MetricFromEval =
+    DIVIDE (
+        DISTINCTCOUNT ( FactRecommendationEval[target_item_id_raw] ),
+        DISTINCTCOUNT ( DimItem[item_id] )
+    )
+RETURN
+    COALESCE ( MetricFromFact, MetricFromEval )
+
+// ---------- Model-specific ----------
+SR-GNN HR@20 :=
+CALCULATE ( [HR@20], KEEPFILTERS ( DimModel[model_label] = "SR-GNN" ) )
+
+Co-occurrence HR@20 :=
+CALCULATE ( [HR@20], KEEPFILTERS ( DimModel[model_label] = "Co-occurrence" ) )
+
+HR@20 Uplift vs Co-occurrence :=
+DIVIDE ( [SR-GNN HR@20] - [Co-occurrence HR@20], [Co-occurrence HR@20] )
+
+SR-GNN MRR@20 :=
+CALCULATE ( [MRR@20], KEEPFILTERS ( DimModel[model_label] = "SR-GNN" ) )
+
+Co-occurrence MRR@20 :=
+CALCULATE ( [MRR@20], KEEPFILTERS ( DimModel[model_label] = "Co-occurrence" ) )
+
+MRR@20 Uplift vs Co-occurrence :=
+DIVIDE ( [SR-GNN MRR@20] - [Co-occurrence MRR@20], [Co-occurrence MRR@20] )
+
+SR-GNN Coverage@20 :=
+CALCULATE ( [Coverage@20], KEEPFILTERS ( DimModel[model_label] = "SR-GNN" ) )
+
+// ---------- Session conversion ----------
+Total Sessions :=
+DISTINCTCOUNT ( SessionSummary[session_id] )
+
+Sessions With Purchase :=
+CALCULATE ( DISTINCTCOUNT ( SessionSummary[session_id] ), SessionSummary[has_purchase] = TRUE () )
+
+Conversion Rate :=
+DIVIDE ( [Sessions With Purchase], [Total Sessions] )
+
+Conversion Rate Before :=
+CALCULATE ( [Conversion Rate], KEEPFILTERS ( SessionSummary[timeframe] = "Trước (gốc)" ) )
+
+Conversion Rate After :=
+CALCULATE ( [Conversion Rate], KEEPFILTERS ( SessionSummary[timeframe] = "Sau (có model)" ) )
+
+Purchase Rate Uplift PP :=
+[Conversion Rate After] - [Conversion Rate Before]
+
+Conversion Rate Uplift % :=
+DIVIDE ( [Conversion Rate After] - [Conversion Rate Before], [Conversion Rate Before] )
+
+// ---------- Funnel measures ----------
+Has View Rate :=
+DIVIDE (
+    CALCULATE ( DISTINCTCOUNT ( SessionSummary[session_id] ), SessionSummary[view_count] >= 1 ),
+    [Total Sessions]
+)
+
+Five Plus Views Rate :=
+DIVIDE (
+    CALCULATE ( DISTINCTCOUNT ( SessionSummary[session_id] ), SessionSummary[view_count] >= 5 ),
+    [Total Sessions]
+)
+
+Purchase Rate :=
+[Conversion Rate]
+
+// ---------- AOV Proxy ----------
+AOV Proxy :=
+VAR PriceColumn =
+    AVERAGEX (
+        Purchases,
+        COALESCE ( RELATED ( DimItem[price_proxy] ), POWER ( 2, RELATED ( DimItem[pricelog2] ) ) - 1 )
+    )
+RETURN
+    PriceColumn
+
+AOV Proxy Before :=
+CALCULATE ( [AOV Proxy], KEEPFILTERS ( SessionSummary[timeframe] = "Trước (gốc)" ) )
+
+AOV Proxy After :=
+CALCULATE ( [AOV Proxy], KEEPFILTERS ( SessionSummary[timeframe] = "Sau (có model)" ) )
+
+AOV Proxy Uplift :=
+DIVIDE ( [AOV Proxy After] - [AOV Proxy Before], [AOV Proxy Before] )
+
+// ---------- Data quality ----------
+Total Items :=
+DISTINCTCOUNT ( DimItem[item_id] )
+
+Total Purchases :=
+COUNTROWS ( Purchases )
+
+Number of Models :=
+DISTINCTCOUNT ( DimModel[model_key] )
+
+Missing session_id count :=
+COUNTROWS ( FILTER ( FactRecommendationEval, ISBLANK ( FactRecommendationEval[session_id] ) ) )
+
+Missing item_id count :=
+COUNTROWS ( FILTER ( FactRecommendationEval, ISBLANK ( FactRecommendationEval[target_item_id_raw] ) ) )
+
+Missing model_key count :=
+COUNTROWS ( FILTER ( FactRecommendationEval, ISBLANK ( FactRecommendationEval[model_key] ) ) )
+
+Missing price_proxy count :=
+COUNTROWS ( FILTER ( DimItem, ISBLANK ( DimItem[price_proxy] ) ) )
+
+Date Range Start :=
+MIN ( ItemViews[event_date] )
+
+Date Range End :=
+MAX ( ItemViews[event_date] )

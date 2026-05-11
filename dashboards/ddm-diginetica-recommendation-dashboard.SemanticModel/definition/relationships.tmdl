@@ -71,8 +71,54 @@ relationship 72d33756-5ea6-4e73-b984-b4b9192d443f
 
 	annotation PBI_IsFromSource = FS
 
-relationship b267b4ee-7275-4f45-a092-77198287f77a
-	joinOnDateBehavior: datePartOnly
+relationship 168c5cf7-e480-4c1c-9f2a-891ad0180f66
+	fromColumn: 'public fact_marketing_kpis'.model_key
+	toColumn: 'public dim_model'.model_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship e12a28ce-0366-43e1-91c3-0aefe677da0b
+	fromColumn: 'public fact_metrics'.model_key
+	toColumn: 'public dim_model'.model_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship b33188d4-ad0d-450f-8475-f644b6b8f59c
+	fromColumn: 'public model_metrics_summary'.model_key
+	toColumn: 'public dim_model'.model_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 6fbdcf5e-8412-46e7-88f7-9077bf43b05c
+	fromColumn: 'public fact_recommendation_eval'.model_key
+	toColumn: 'public dim_model'.model_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship 5cf93c35-7576-4fd3-a786-34387c25d05b
+	fromColumn: 'public fact_recommendation_eval'.item_id
+	toColumn: 'public dim_item'.item_id
+
+	annotation PBI_IsFromSource = FS
+
+relationship 2d5cc797-085d-496d-acda-b55d83962623
+	crossFilteringBehavior: bothDirections
+	fromCardinality: one
 	fromColumn: 'public fact_kpi_summary'.date_key
-	toColumn: LocalDateTable_85fafdf7-1956-4487-b3bb-fcdf6cee3afb.Date
+	toColumn: 'public dim_date'.date_key
+
+	annotation PBI_IsFromSource = FS
+
+relationship rel_fact_purchases_dim_item
+	fromColumn: 'public fact_purchases'.item_id
+	toColumn: 'public dim_item'.item_id
+
+relationship rel_fact_recommendation_eval_dim_session
+	fromColumn: 'public fact_recommendation_eval'.session_id
+	toColumn: 'public dim_session'.session_id
+
+relationship rel_session_summary_dim_session
+	crossFilteringBehavior: bothDirections
+	fromColumn: 'public session_summary'.session_id
+	toColumn: 'public dim_session'.session_id
 

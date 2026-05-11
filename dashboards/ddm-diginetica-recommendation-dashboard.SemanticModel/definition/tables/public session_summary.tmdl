@@ -1,0 +1,173 @@
+table 'public session_summary'
+	lineageTag: 78630661-2fc3-4a86-914e-957914587364
+
+	column session_id
+		dataType: int64
+		formatString: 0
+		lineageTag: 86d91389-60d9-4753-b619-3cd20200d5f9
+		summarizeBy: sum
+		sourceColumn: session_id
+
+		annotation SummarizationSetBy = Automatic
+
+	column timeframe_base
+		dataType: string
+		isHidden
+		lineageTag: da81936a-b2b7-423f-8eb1-51871ede3f91
+		summarizeBy: none
+		sourceColumn: timeframe
+
+		annotation SummarizationSetBy = Automatic
+
+	column view_count
+		dataType: int64
+		formatString: 0
+		lineageTag: 3ce9e49c-f7dc-4580-a823-8b7eda6d86b8
+		summarizeBy: sum
+		sourceColumn: view_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column unique_items_viewed
+		dataType: int64
+		formatString: 0
+		lineageTag: 35a3e1a3-0e12-4456-99ce-d52aae2b0e97
+		summarizeBy: sum
+		sourceColumn: unique_items_viewed
+
+		annotation SummarizationSetBy = Automatic
+
+	column has_purchase
+		dataType: boolean
+		formatString: """TRUE"";""TRUE"";""FALSE"""
+		lineageTag: 52423ac3-8397-4ce0-ad34-139a4c98e9ed
+		summarizeBy: none
+		sourceColumn: has_purchase
+
+		annotation SummarizationSetBy = Automatic
+
+	column purchase_count
+		dataType: int64
+		formatString: 0
+		lineageTag: b397a0f3-4db4-41ed-b109-0580bbdf1049
+		summarizeBy: sum
+		sourceColumn: purchase_count
+
+		annotation SummarizationSetBy = Automatic
+
+	column quantity_sum
+		dataType: double
+		lineageTag: 1807508f-ad61-4334-9eab-8125a402bbb6
+		summarizeBy: sum
+		sourceColumn: quantity_sum
+
+		annotation SummarizationSetBy = Automatic
+
+		annotation PBI_FormatHint = {"isGeneralNumber":true}
+
+	column session_length_bucket
+		dataType: string
+		lineageTag: 88347697-d51e-4241-8893-fac4ac514dfc
+		summarizeBy: none
+		sourceColumn: session_length_bucket
+
+		annotation SummarizationSetBy = Automatic
+
+	column session_view_bucket_for_conversion
+		dataType: string
+		lineageTag: ce0e8afc-ec4b-4b42-8261-c089f7618c70
+		summarizeBy: none
+		sourceColumn: session_view_bucket_for_conversion
+
+		annotation SummarizationSetBy = Automatic
+
+	column segment_base
+		dataType: string
+		isHidden
+		lineageTag: 857d9b5a-2982-410f-88f5-0a215d9a89f0
+		summarizeBy: none
+		sourceColumn: segment
+
+		annotation SummarizationSetBy = Automatic
+
+	column timeframe = [timeframe_base]
+		dataType: string
+		lineageTag: da81936a-b2b7-423f-8eb1-51871ede3f93
+		summarizeBy: none
+		sortByColumn: 'Timeframe Sort'
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Timeframe Sort' =
+			SWITCH('public session_summary'[timeframe_base],
+			    "Trước (gốc)", 1,
+			    "Sau (có model)", 2,
+			    3
+			)
+		dataType: int64
+		formatString: 0
+		lineageTag: da81936a-b2b7-423f-8eb1-51871ede3f92
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Conversion View Bucket (Fixed)' =
+			SWITCH(TRUE(),
+			    'public session_summary'[view_count] <= 10, FORMAT('public session_summary'[view_count], "0"),
+			    'public session_summary'[view_count] <= 15, "11-15",
+			    'public session_summary'[view_count] <= 20, "16-20",
+			    "21+"
+			)
+		dataType: string
+		lineageTag: ce0e8afc-ec4b-4b42-8261-c089f7618c71
+		summarizeBy: none
+		sortByColumn: 'Conversion View Bucket Sort'
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Conversion View Bucket Sort' =
+			SWITCH(TRUE(),
+			    'public session_summary'[view_count] <= 10, 'public session_summary'[view_count],
+			    'public session_summary'[view_count] <= 15, 11,
+			    'public session_summary'[view_count] <= 20, 16,
+			    21
+			)
+		dataType: int64
+		formatString: 0
+		lineageTag: ce0e8afc-ec4b-4b42-8261-c089f7618c72
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	column segment = [segment_base]
+		dataType: string
+		lineageTag: 857d9b5a-2982-410f-88f5-0a215d9a89f2
+		summarizeBy: none
+		sortByColumn: 'Segment Sort'
+
+		annotation SummarizationSetBy = Automatic
+
+	column 'Segment Sort' =
+			SWITCH (
+			    TRUE (),
+			    'public session_summary'[has_purchase] && 'public session_summary'[view_count] >= 5, 1,
+			    'public session_summary'[has_purchase], 3,
+			    'public session_summary'[view_count] <= 1, 4,
+			    2
+			)
+		dataType: int64
+		formatString: 0
+		lineageTag: 857d9b5a-2982-410f-88f5-0a215d9a89f1
+		summarizeBy: sum
+
+		annotation SummarizationSetBy = Automatic
+
+	partition 'public session_summary' = m
+		mode: import
+		source =
+				let
+				    Source = PostgreSQL.Database("recsys-sql-lytlong-e04a.b.aivencloud.com:22307", "defaultdb"),
+				    public_session_summary = Source{[Schema="public",Item="session_summary"]}[Data]
+				in
+				    public_session_summary
+
