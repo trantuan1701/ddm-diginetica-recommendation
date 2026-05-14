@@ -8,7 +8,10 @@ The main analytical unit is the **session**. In this dataset, `userId` is heavil
 
 ## Project Scope
 
-This repo owns the Diginetica analytics data and reporting layer. It does not train the recommender.
+This repo owns the Diginetica analytics, evaluation, and reporting layer. It
+does not train, serve, deploy, or monitor the recommender. Those backend and
+MLOps responsibilities live in the upstream SR-GNN repository:
+[`tlong-ds/recsys-group-project`](https://github.com/tlong-ds/recsys-group-project).
 
 It does:
 
@@ -25,9 +28,27 @@ It does not:
 
 - retrain SR-GNN
 - re-split model evaluation data
-- copy training, serving, Kubernetes, or monitoring code
+- own training, experiment, serving, Kubernetes, or monitoring code
 - train or promote models
 - claim real CTR, causal conversion lift, ROAS, or real revenue uplift
+
+## Upstream SR-GNN Backend and MLOps Repo
+
+The model backend is maintained in
+[`tlong-ds/recsys-group-project`](https://github.com/tlong-ds/recsys-group-project).
+Use that repository for:
+
+- SR-GNN, GGNN, TAGNN, and baseline recommender implementation details
+- data processing, training, evaluation, and experiment pipelines
+- model selection, promotion, and DagsHub/MLflow registry publishing
+- FastAPI serving and production prediction behavior
+- Docker, Kubernetes, Terraform, CI/CD, and monitoring assets
+
+This DDM repo treats that repo as the source of recommender truth. It consumes
+the registered model artifact and compatible evaluation context artifacts such
+as test examples, train examples, and item vocabulary. This repo then produces
+offline metrics, marketing-safe KPI framing, parquet marts, Power BI assets,
+and report-ready analysis.
 
 ## Core Data
 
